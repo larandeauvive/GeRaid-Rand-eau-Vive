@@ -1,0 +1,87 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global safe catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Application allows anonymous auth with a shared password
+    function isSignedIn() { return request.auth != null; }
+    function isValidId(id) { return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidCompetitor(data) {
+      return data.keys().hasAll(['bib', 'firstName', 'lastName', 'category', 'epreuve', 'chipNumber']) &&
+             data.bib is string && data.bib.size() <= 100 &&
+             data.firstName is string && data.firstName.size() <= 100 &&
+             data.lastName is string && data.lastName.size() <= 100 &&
+             data.category is string && data.category.size() <= 100 &&
+             data.epreuve is string && data.epreuve.size() <= 100 &&
+             data.chipNumber is string && data.chipNumber.size() <= 100 &&
+             ( !('id' in data) || (data.id is string && data.id.size() <= 128) ) &&
+             ( !('epreuveId' in data) || (data.epreuveId is string && data.epreuveId.size() <= 128) ) &&
+             ( !('club' in data) || (data.club is string && data.club.size() <= 200) );
+    }
+
+    match /competitors/{competitorId} {
+      allow get: if isSignedIn() && isValidId(competitorId);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(competitorId) &&
+                    isValidCompetitor(incoming()) &&
+                    incoming().keys().size() >= 6 && incoming().keys().size() <= 9;
+      allow update: if isSignedIn() && isValidId(competitorId) &&
+                    isValidCompetitor(incoming()) &&
+                    incoming().keys().size() >= 6 && incoming().keys().size() <= 9;
+      allow delete: if isSignedIn() && isValidId(competitorId);
+    }
+
+    function isValidDiscipline(element) {
+      return element.keys().hasAll(['id', 'name']) && element.keys().size() == 2 &&
+             element.id is string && element.id.size() <= 128 &&
+             element.name is string && element.name.size() <= 100;
+    }
+
+    function isValidEpreuve(data) {
+      return data.keys().hasAll(['name', 'disciplines']) &&
+             data.name is string && data.name.size() <= 100 &&
+             data.disciplines is list && data.disciplines.size() <= 50 &&
+             (data.disciplines.size() == 0 || isValidDiscipline(data.disciplines[0])) &&
+             ( !('id' in data) || (data.id is string && data.id.size() <= 128) );
+    }
+
+    match /epreuves/{epreuveId} {
+      allow get: if isSignedIn() && isValidId(epreuveId);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(epreuveId) &&
+                    isValidEpreuve(incoming()) &&
+                    incoming().keys().size() >= 2 && incoming().keys().size() <= 3;
+      allow update: if isSignedIn() && isValidId(epreuveId) &&
+                    isValidEpreuve(incoming()) &&
+                    incoming().keys().size() >= 2 && incoming().keys().size() <= 3;
+      allow delete: if isSignedIn() && isValidId(epreuveId);
+    }
+
+    function isValidFrameLog(data) {
+      return data.keys().hasAll(['timestamp', 'hexData']) &&
+             data.timestamp is string && data.timestamp.size() <= 100 &&
+             data.hexData is string && data.hexData.size() <= 500 &&
+             ( !('id' in data) || (data.id is string && data.id.size() <= 128) ) &&
+             ( !('rawData' in data) || (data.rawData is string && data.rawData.size() <= 1000) );
+    }
+
+    match /logs/{logId} {
+      allow get: if isSignedIn() && isValidId(logId);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(logId) &&
+                    isValidFrameLog(incoming()) &&
+                    incoming().keys().size() >= 2 && incoming().keys().size() <= 4;
+      allow update: if isSignedIn() && isValidId(logId) &&
+                    isValidFrameLog(incoming()) &&
+                    incoming().keys().size() >= 2 && incoming().keys().size() <= 4;
+      allow delete: if isSignedIn() && isValidId(logId);
+    }
+  }
+}

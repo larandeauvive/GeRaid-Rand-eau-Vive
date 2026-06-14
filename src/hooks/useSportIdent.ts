@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
 import { FrameLog } from '../types';
+import { useFrameLogs } from '../firestoreHooks';
 
 export function useSportIdent() {
   const [isConnected, setIsConnected] = useState(false);
-  const [logs, setLogs] = useState<FrameLog[]>([]);
+  const { logs, addLog, clearAllLogs } = useFrameLogs();
   const portRef = useRef<any>(null);
   const readerRef = useRef<any>(null);
 
@@ -51,7 +52,7 @@ export function useSportIdent() {
     }
   };
 
-  const handleData = useCallback((bytes: Uint8Array) => {
+  const handleData = useCallback(async (bytes: Uint8Array) => {
     const hexString = Array.from(bytes)
       .map(b => b.toString(16).padStart(2, '0').toUpperCase())
       .join(' ');
@@ -60,11 +61,20 @@ export function useSportIdent() {
       id: crypto.randomUUID(),
       timestamp: new Date(),
       hexData: hexString,
-      rawData: bytes,
+      // Since raw Uint8Array is tricky with firestore without special conversion, 
+      // but we could base64 encode it or convert to an array of numbers,
+      // actually firestore does NOT support Uint8Array directly unless wrapped in Bytes, 
+      // but we defined it as string in schema. So let's store it as hexString there.
+      rawData: bytes, // we will omit this or serialize it. Wait, the schema says string.
+      // So let's serialize it:
     };
+    
+    // We update local schema type later if needed, but in DRAFT_firestore.rules it's a string,
+    // so we should probably map it. But in local types.ts it is Uint8Array. 
+    // Wait, let's just serialize it properly in `addLog`.
+    await addLog(newLog);
 
-    setLogs(prev => [newLog, ...prev]);
-  }, []);
+  }, [addLog]);
 
   const readLoop = async (port: any) => {
     try {
@@ -95,7 +105,5 @@ export function useSportIdent() {
     }
   };
 
-  const clearLogs = () => setLogs([]);
-
-  return { isConnected, connect, disconnect, logs, clearLogs };
+  return { isConnected, connect, disconnect, logs, clearLogs: clearAllLogs };
 }

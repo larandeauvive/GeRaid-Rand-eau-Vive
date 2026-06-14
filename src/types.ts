@@ -1,3 +1,14 @@
+export interface Discipline {
+  id: string;
+  name: string;
+}
+
+export interface Epreuve {
+  id: string;
+  name: string;
+  disciplines: Discipline[];
+}
+
 export interface Competitor {
   id: string;
   bib: string; // Dossard
@@ -5,6 +16,7 @@ export interface Competitor {
   lastName: string;
   category: string;
   epreuve: string;
+  epreuveId?: string; // Opt
   chipNumber: string; // Numéro de puce SportIdent
   club: string;
 }

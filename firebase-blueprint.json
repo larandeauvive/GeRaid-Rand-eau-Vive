@@ -1,0 +1,71 @@
+{
+  "entities": {
+    "Competitor": {
+      "title": "Competitor",
+      "description": "A participant in a race/event",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "bib": { "type": "string" },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "category": { "type": "string" },
+        "epreuve": { "type": "string" },
+        "epreuveId": { "type": "string" },
+        "chipNumber": { "type": "string" },
+        "club": { "type": "string" }
+      },
+      "required": ["bib", "firstName", "lastName", "category", "epreuve", "chipNumber"]
+    },
+    "Epreuve": {
+      "title": "Epreuve",
+      "description": "A race or event containing multiple disciplines",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "disciplines": {
+          "type": "array",
+          "items": { "$ref": "#/entities/Discipline" }
+        }
+      },
+      "required": ["name", "disciplines"]
+    },
+    "Discipline": {
+      "title": "Discipline",
+      "description": "A segment/sport discipline inside an Epreuve",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "FrameLog": {
+      "title": "FrameLog",
+      "description": "Raw data frame log from SportIdent device",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "hexData": { "type": "string" },
+        "rawData": { "type": "string" }
+      },
+      "required": ["timestamp", "hexData"]
+    }
+  },
+  "firestore": {
+    "/competitors/{competitorId}": {
+      "schema": { "$ref": "#/entities/Competitor" },
+      "description": "Store all competitors"
+    },
+    "/epreuves/{epreuveId}": {
+      "schema": { "$ref": "#/entities/Epreuve" },
+      "description": "Store all epreuves"
+    },
+    "/logs/{logId}": {
+      "schema": { "$ref": "#/entities/FrameLog" },
+      "description": "Store hardware logs"
+    }
+  }
+}

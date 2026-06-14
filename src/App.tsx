@@ -6,15 +6,63 @@
 import { useState, useRef } from 'react';
 import Papa from 'papaparse';
 import { format } from 'date-fns';
-import { Activity, Usb, Save, Upload, Trash2, Users, Clock, ArrowRightLeft } from 'lucide-react';
+import { Activity, Usb, Save, Upload, Trash2, Users, Clock, ArrowRightLeft, Settings, LogOut, CheckCircle2 } from 'lucide-react';
 import { useSportIdent } from './hooks/useSportIdent';
 import { Competitor } from './types';
+import { ConfigurationTab } from './components/ConfigurationTab';
+import { ImportMapper } from './components/ImportMapper';
+import { useAuth } from './AuthProvider';
+import { useCompetitors } from './firestoreHooks';
 
 export default function App() {
+  const { user, signIn, logOut } = useAuth();
+  
   const { isConnected, connect, disconnect, logs, clearLogs } = useSportIdent();
-  const [competitors, setCompetitors] = useState<Competitor[]>([]);
-  const [activeTab, setActiveTab] = useState<'logs' | 'competitors'>('logs');
+  const { competitors, addCompetitorsBatch } = useCompetitors();
+  
+  const [activeTab, setActiveTab] = useState<'logs' | 'competitors' | 'settings'>('settings');
+  const [importState, setImportState] = useState<{headers: string[], data: any[]}|null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [passwordInput, setPasswordInput] = useState('');
+  
+  if (!user) {
+    const handleLogin = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (passwordInput === 'RV26') {
+        signIn();
+      } else {
+        alert("Mot de passe incorrect.");
+      }
+    };
+
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200 max-w-sm w-full text-center">
+          <div className="bg-emerald-100 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <Activity className="h-8 w-8 text-emerald-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-800 mb-2">Chrono-Raid Web</h1>
+          <p className="text-slate-500 mb-8">Veuillez renseigner le mot de passe pour accéder à l'interface.</p>
+          <form onSubmit={handleLogin} className="flex flex-col gap-4">
+            <input 
+              type="password"
+              placeholder="Mot de passe"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-colors"
+            />
+            <button 
+              type="submit"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl transition-colors"
+            >
+              Se Connecter
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -24,18 +72,11 @@ export default function App() {
       header: true,
       skipEmptyLines: true,
       complete: (results) => {
-        const parsedCompetitors: Competitor[] = results.data.map((row: any) => ({
-          id: crypto.randomUUID(),
-          bib: row['Dossard'] || row['BIB'] || row['n°'] || '',
-          firstName: row['Prénom'] || row['Prenom'] || '',
-          lastName: row['Nom'] || '',
-          category: row['Catégorie'] || row['Categorie'] || row['Cat'] || '',
-          epreuve: row['Epreuve'] || row['Course'] || '',
-          chipNumber: row['Puce'] || row['Puce SI'] || row['Puce/SI'] || '',
-          club: row['Club'] || row['Equipe'] || ''
-        }));
-        setCompetitors(parsedCompetitors);
-        setActiveTab('competitors');
+        setImportState({
+          headers: results.meta.fields || [],
+          data: results.data
+        });
+        setActiveTab('settings');
       },
       error: (error) => {
         console.error("Erreur de parsing CSV:", error);
@@ -43,10 +84,18 @@ export default function App() {
       }
     });
     
-    // Reset input so the same file can be uploaded again if needed
     if (fileInputRef.current) {
         fileInputRef.current.value = '';
     }
+  };
+
+  const handleConfirmImport = async (newCompetitors: Competitor[]) => {
+    await addCompetitorsBatch(newCompetitors);
+    setImportState(null);
+  };
+
+  const handleCancelImport = () => {
+    setImportState(null);
   };
 
   const handleKlikegoClick = () => {
@@ -56,25 +105,30 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 sm:p-6 flex flex-col max-w-[1400px] mx-auto w-full">
       {/* Header Section */}
-      <header className="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 shrink-0">
+      <header className="flex justify-between items-center mb-6 bg-white p-4 rounded-2xl shadow-sm border border-slate-200 shrink-0 gap-4">
         <div className="flex items-center gap-3">
-          <div className="bg-emerald-600 p-2 rounded-lg text-white">
+          <div className="bg-emerald-600 p-2 rounded-lg text-white shrink-0">
             <Activity className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-800">
+            <h1 className="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
               Chrono-Raid <span className="text-emerald-600">Web</span>
+              <span className="hidden sm:flex bg-emerald-100 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full items-center gap-1">
+                 <CheckCircle2 className="h-3 w-3" /> Cloud Sync
+              </span>
             </h1>
-            <p className="text-xs text-slate-500 font-medium uppercase tracking-wider hidden sm:block">Timing & Management System</p>
           </div>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4 sm:gap-6">
           <div className="flex items-center gap-2">
             <span className={`h-3 w-3 rounded-full ${isConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500 animate-pulse'}`}></span>
             <span className="text-sm font-semibold text-slate-600 hidden sm:block">
               SportIdent: {isConnected ? 'Online' : 'Offline'}
             </span>
           </div>
+           <button onClick={logOut} className="p-2 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors border border-slate-200" title="Déconnexion">
+              <LogOut className="h-5 w-5" />
+          </button>
         </div>
       </header>
 
@@ -144,8 +198,8 @@ export default function App() {
             </button>
 
             {competitors.length > 0 && (
-              <div className="mt-4 text-[10px] font-mono bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-lg w-full text-center font-bold">
-                {competitors.length} Entries Loaded
+              <div className="mt-4 text-[10px] font-mono bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-lg w-full text-center font-bold flex justify-center gap-1.5">
+                 <CheckCircle2 className="h-3 w-3" /> {competitors.length} Cloud Entries
               </div>
             )}
           </div>
@@ -174,6 +228,15 @@ export default function App() {
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Listing Concurrents</span> ({competitors.length})
             </button>
+            <button
+              onClick={() => setActiveTab('settings')}
+              className={`flex-1 py-3 px-4 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 transition-all ${
+                activeTab === 'settings' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Course & Paramètres</span>
+            </button>
           </div>
 
           {/* Tab Content: Logs (Live Hex Stream style) */}
@@ -193,7 +256,7 @@ export default function App() {
                   className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  Effacer
+                  Effacer Cloud Logs
                 </button>
               </div>
               
@@ -230,8 +293,8 @@ export default function App() {
               
               <div className="flex-1 overflow-auto -mx-2 px-2">
                 <table className="w-full text-left">
-                  <thead className="bg-white sticky top-0 z-10">
-                    <tr className="text-[10px] text-slate-400 uppercase border-b border-slate-100">
+                  <thead className="bg-white sticky top-0 z-10 border-b border-slate-100">
+                    <tr className="text-[10px] text-slate-400 uppercase">
                       <th className="pb-3 px-2 font-bold bg-white">Dos.</th>
                       <th className="pb-3 px-2 font-bold bg-white">SI-Card</th>
                       <th className="pb-3 px-2 font-bold bg-white">Name</th>
@@ -252,7 +315,7 @@ export default function App() {
                         <tr key={comp.id} className="border-t border-slate-50 hover:bg-slate-50 transition-colors">
                           <td className="px-2 py-3 font-mono text-slate-500">{comp.bib}</td>
                           <td className="px-2 py-3 font-mono font-bold text-emerald-600">{comp.chipNumber}</td>
-                          <td className="px-2 py-3 font-semibold text-slate-800">{comp.lastName.toUpperCase()} {comp.firstName}</td>
+                          <td className="px-2 py-3 font-semibold text-slate-800">{comp.lastName?.toUpperCase()} {comp.firstName}</td>
                           <td className="px-2 py-3 text-slate-500">{comp.epreuve}</td>
                           <td className="px-2 py-3 text-slate-500 hidden sm:table-cell">{comp.category}</td>
                           <td className="px-2 py-3 text-slate-500 max-w-[150px] truncate hidden md:table-cell" title={comp.club}>{comp.club}</td>
@@ -265,6 +328,22 @@ export default function App() {
             </div>
           )}
 
+          {/* Tab Content: Settings */}
+          {activeTab === 'settings' && (
+            importState ? (
+              <ImportMapper 
+                headers={importState.headers} 
+                data={importState.data} 
+                onConfirm={handleConfirmImport} 
+                onCancel={handleCancelImport} 
+              />
+            ) : (
+              <ConfigurationTab 
+                onTriggerImport={handleKlikegoClick} 
+              />
+            )
+          )}
+
         </div>
       </main>
 
@@ -275,7 +354,7 @@ export default function App() {
           <span className="text-emerald-500">Web Serial API Active</span>
         </div>
         <div className="flex gap-4 mt-2 sm:mt-0">
-          <span>Local Cache: Active</span>
+          <span className="text-indigo-400">Cloud Sync: Active</span>
           <span>Workspace Environment</span>
         </div>
       </footer>
