@@ -129,7 +129,8 @@ export function useFrameLogs() {
           items.push({ 
             id: doc.id, 
             ...data,
-            timestamp: new Date(data.timestamp) 
+            timestamp: new Date(data.timestamp),
+            punchTime: data.punchTime ? new Date(data.punchTime) : undefined
           } as FrameLog);
         });
         // Sort manually by timestamp ascending as we didn't setup orderBy in DB layer to avoid composite indexes yet
@@ -152,6 +153,9 @@ export function useFrameLogs() {
       };
       if (log.rawData) {
         payload.rawData = Array.from(log.rawData).join(",");
+      }
+      if (log.punchTime) {
+        payload.punchTime = (log.punchTime as Date).toISOString();
       }
       await setDoc(doc(db, "logs", id), payload);
     } catch (err) {

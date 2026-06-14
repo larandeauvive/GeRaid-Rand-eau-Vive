@@ -4,5 +4,14 @@ export default [
   {
     ignores: ['dist/**/*', 'node_modules/**/*']
   },
-  firebaseRulesPlugin.configs['flat/recommended']
+  {
+    plugins: {
+      '@firebase/security-rules': firebaseRulesPlugin
+    },
+    rules: {
+      ...firebaseRulesPlugin.configs['flat/recommended'].rules,
+      '@firebase/security-rules/no-open-reads': 'warn',
+      '@firebase/security-rules/no-open-writes': 'warn'
+    }
+  }
 ];

@@ -12,13 +12,15 @@ import { Competitor } from './types';
 import { ConfigurationTab } from './components/ConfigurationTab';
 import { ImportMapper } from './components/ImportMapper';
 import { useAuth } from './AuthProvider';
-import { useCompetitors } from './firestoreHooks';
+import { useCompetitors, useFrameLogs, useEpreuves } from './firestoreHooks';
 
 export default function App() {
   const { user, signIn, logOut } = useAuth();
   
   const { isConnected, connect, disconnect, logs, clearLogs } = useSportIdent();
   const { competitors, addCompetitorsBatch } = useCompetitors();
+  const { epreuves } = useEpreuves();
+  const { addLog } = useFrameLogs();
   
   const [activeTab, setActiveTab] = useState<'logs' | 'competitors' | 'settings'>('settings');
   const [importState, setImportState] = useState<{headers: string[], data: any[]}|null>(null);
@@ -63,6 +65,75 @@ export default function App() {
       </div>
     );
   }
+
+  const formatTimeDiff = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    if(totalSeconds < 0) return '???';
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    if(h > 0) return `${h}h ${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m}m ${s.toString().padStart(2, '0')}s`;
+  };
+
+  const getCompetitorChrono = (comp: Competitor) => {
+    const ep = epreuves.find(e => e.name === comp.epreuve);
+    if (!ep || !ep.startStation || !ep.endStation) return { totalChrono: '-', frozen: null };
+    
+    const startLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === ep.startStation);
+    const endLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === ep.endStation);
+    
+    if (startLog && endLog && startLog.punchTime && endLog.punchTime) {
+      let diff = endLog.punchTime.getTime() - startLog.punchTime.getTime();
+      let frozenMs = 0;
+      
+      if (ep.neutralizations) {
+         ep.neutralizations.forEach(neut => {
+            const nStartLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === neut.startStation);
+            const nEndLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === neut.endStation);
+            if (nStartLog && nEndLog && nStartLog.punchTime && nEndLog.punchTime) {
+                if (nStartLog.punchTime >= startLog.punchTime && nEndLog.punchTime <= endLog.punchTime) {
+                    const nDiff = nEndLog.punchTime.getTime() - nStartLog.punchTime.getTime();
+                    if (nDiff > 0) {
+                        diff -= nDiff;
+                        frozenMs += nDiff;
+                    }
+                }
+            }
+         });
+      }
+      return { 
+        totalChrono: formatTimeDiff(diff), 
+        frozen: frozenMs > 0 ? formatTimeDiff(frozenMs) : null 
+      };
+    }
+    
+    if (startLog) return { totalChrono: 'En course...', frozen: null };
+    
+    return { totalChrono: 'En attente', frozen: null };
+  };
+
+  const getCompetitorSegments = (comp: Competitor) => {
+    const ep = epreuves.find(e => e.name === comp.epreuve);
+    if (!ep) return [];
+    
+    const segmentsList: {name: string, chrono: string}[] = [];
+    ep.disciplines.forEach(d => {
+       if (d.segments) {
+         d.segments.forEach(seg => {
+           const startLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === seg.startStation);
+           const endLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === seg.endStation);
+           if (startLog && endLog && startLog.punchTime && endLog.punchTime) {
+               const diff = endLog.punchTime.getTime() - startLog.punchTime.getTime();
+               segmentsList.push({ name: seg.name, chrono: formatTimeDiff(diff) });
+           } else if (startLog) {
+               segmentsList.push({ name: seg.name, chrono: 'En cours...' });
+           }
+         });
+       }
+    });
+    return segmentsList;
+  };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -242,7 +313,7 @@ export default function App() {
           {/* Tab Content: Logs (Live Hex Stream style) */}
           {activeTab === 'logs' && (
             <div className="bg-slate-900 rounded-3xl p-6 shadow-inner border border-slate-800 flex flex-col h-full overflow-hidden">
-              <div className="flex justify-between items-center mb-4 shrink-0">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4 shrink-0">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-emerald-500 flex items-center gap-2">
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -250,14 +321,36 @@ export default function App() {
                   </span>
                   Live Serial Feed
                 </h3>
-                <button
-                  onClick={clearLogs}
-                  disabled={logs.length === 0}
-                  className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Effacer Cloud Logs
-                </button>
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <button
+                      onClick={() => {
+                         // Mock a punch
+                         const puce = prompt("Numéro de puce (SI-Card) ?");
+                         const poste = prompt("Numéro de poste ?");
+                         if (puce && poste) {
+                             addLog({
+                                timestamp: new Date(),
+                                hexData: "MOCK REA D O U T X X",
+                                rawData: new Uint8Array(),
+                                stationNumber: poste,
+                                chipNumber: puce,
+                                punchTime: new Date()
+                             });
+                         }
+                      }}
+                      className="flex-1 sm:flex-none px-3 py-1.5 bg-slate-800 text-emerald-400 border border-slate-700 rounded-lg text-xs font-bold hover:bg-slate-700 transition-colors"
+                    >
+                      + Simuler Pointage
+                    </button>
+                    <button
+                      onClick={clearLogs}
+                      disabled={logs.length === 0}
+                      className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      Effacer Cloud Logs
+                    </button>
+                </div>
               </div>
               
               <div className="font-mono text-xs text-emerald-400/80 overflow-y-auto flex-1 leading-relaxed rounded-xl space-y-1">
@@ -273,8 +366,12 @@ export default function App() {
                         <span className="text-emerald-500 shrink-0 select-none">
                           &gt; [{format(log.timestamp, 'HH:mm:ss.SSS')}]
                         </span>
-                        <span className="text-emerald-300 break-all font-bold">
-                          {log.hexData}
+                        <span className="text-emerald-300 break-all font-bold group-hover:text-emerald-100 transition-colors">
+                          {log.stationNumber && log.chipNumber ? (
+                            <span>Poste: <span className="text-white">{log.stationNumber}</span> | Puce: <span className="text-white">{log.chipNumber}</span> | Raw: {log.hexData}</span>
+                          ) : (
+                            log.hexData
+                          )}
                         </span>
                       </li>
                     ))}
@@ -299,8 +396,8 @@ export default function App() {
                       <th className="pb-3 px-2 font-bold bg-white">SI-Card</th>
                       <th className="pb-3 px-2 font-bold bg-white">Name</th>
                       <th className="pb-3 px-2 font-bold bg-white">Race</th>
-                      <th className="pb-3 px-2 font-bold bg-white hidden sm:table-cell">Cat.</th>
                       <th className="pb-3 px-2 font-bold bg-white hidden md:table-cell">Club</th>
+                      <th className="pb-3 px-2 font-bold bg-white text-right">Chrono</th>
                     </tr>
                   </thead>
                   <tbody className="text-sm">
@@ -311,16 +408,38 @@ export default function App() {
                         </td>
                       </tr>
                     ) : (
-                      competitors.map((comp) => (
-                        <tr key={comp.id} className="border-t border-slate-50 hover:bg-slate-50 transition-colors">
-                          <td className="px-2 py-3 font-mono text-slate-500">{comp.bib}</td>
-                          <td className="px-2 py-3 font-mono font-bold text-emerald-600">{comp.chipNumber}</td>
-                          <td className="px-2 py-3 font-semibold text-slate-800">{comp.lastName?.toUpperCase()} {comp.firstName}</td>
-                          <td className="px-2 py-3 text-slate-500">{comp.epreuve}</td>
-                          <td className="px-2 py-3 text-slate-500 hidden sm:table-cell">{comp.category}</td>
-                          <td className="px-2 py-3 text-slate-500 max-w-[150px] truncate hidden md:table-cell" title={comp.club}>{comp.club}</td>
-                        </tr>
-                      ))
+                      competitors.map((comp) => {
+                        const segments = getCompetitorSegments(comp);
+                        return (
+                          <tr key={comp.id} className="border-t border-slate-50 hover:bg-slate-50 transition-colors group">
+                            <td className="px-2 py-3 font-mono text-slate-500 align-top">{comp.bib}</td>
+                            <td className="px-2 py-3 font-mono font-bold text-emerald-600 align-top">{comp.chipNumber}</td>
+                            <td className="px-2 py-3 font-semibold text-slate-800 align-top">{comp.lastName?.toUpperCase()} {comp.firstName}</td>
+                            <td className="px-2 py-3 text-slate-500 align-top">{comp.epreuve}</td>
+                            <td className="px-2 py-3 text-slate-500 max-w-[150px] truncate hidden md:table-cell align-top" title={comp.club}>{comp.club}</td>
+                            <td className="px-2 py-3 text-right align-top">
+                               <div className="font-mono font-bold text-indigo-600 text-base">
+                                 {getCompetitorChrono(comp).totalChrono}
+                               </div>
+                               {getCompetitorChrono(comp).frozen && (
+                                 <div className="text-[10px] text-orange-500 font-medium">
+                                   (dont {getCompetitorChrono(comp).frozen} gelés)
+                                 </div>
+                               )}
+                               {segments.length > 0 && (
+                                 <div className="mt-2 flex flex-col gap-1 items-end">
+                                   {segments.map((seg, idx) => (
+                                     <div key={idx} className="flex items-center gap-2 text-[10px] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                       <span className="font-semibold text-slate-500 uppercase tracking-wider">{seg.name}</span>
+                                       <span className="font-mono text-indigo-500 font-bold">{seg.chrono}</span>
+                                     </div>
+                                   ))}
+                                 </div>
+                               )}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

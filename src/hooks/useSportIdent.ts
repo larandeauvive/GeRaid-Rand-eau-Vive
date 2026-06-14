@@ -57,21 +57,34 @@ export function useSportIdent() {
       .map(b => b.toString(16).padStart(2, '0').toUpperCase())
       .join(' ');
       
+    // Naive 0x53 parser
+    let stationNumber, chipNumber, punchTime;
+    if (bytes[0] === 0x02 && bytes[1] === 0x53 && bytes.length >= 18) {
+      // 02 53 0D [3:CN_H] [4:SI3] [5:SI2] [6:SI1] [7:SI0] [8:CN_L] [9:TH] [10:TL] [11:TSS] [12:DOW] [13:?CRC]...
+      const cn = (bytes[3] << 8) | bytes[8];
+      stationNumber = cn.toString();
+      
+      const si = (bytes[4] << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7];
+      chipNumber = si.toString();
+      
+      // Time could be generic: HH MM SS
+      // Assuming TH (9) = hours, TL (10) = mins, TSS (11) = secs
+      if (bytes[9] <= 23 && bytes[10] <= 59 && bytes[11] <= 59) {
+          const now = new Date();
+          punchTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), bytes[9], bytes[10], bytes[11], 0);
+      }
+    }
+
     const newLog: FrameLog = {
       id: crypto.randomUUID(),
       timestamp: new Date(),
       hexData: hexString,
-      // Since raw Uint8Array is tricky with firestore without special conversion, 
-      // but we could base64 encode it or convert to an array of numbers,
-      // actually firestore does NOT support Uint8Array directly unless wrapped in Bytes, 
-      // but we defined it as string in schema. So let's store it as hexString there.
-      rawData: bytes, // we will omit this or serialize it. Wait, the schema says string.
-      // So let's serialize it:
+      rawData: bytes, 
+      stationNumber,
+      chipNumber,
+      punchTime
     };
     
-    // We update local schema type later if needed, but in DRAFT_firestore.rules it's a string,
-    // so we should probably map it. But in local types.ts it is Uint8Array. 
-    // Wait, let's just serialize it properly in `addLog`.
     await addLog(newLog);
 
   }, [addLog]);

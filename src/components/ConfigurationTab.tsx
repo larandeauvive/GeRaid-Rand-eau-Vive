@@ -19,6 +19,8 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
   const [editingCompetitorId, setEditingCompetitorId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Competitor>>({});
 
+  const [expandedDisciplineId, setExpandedDisciplineId] = useState<string | null>(null);
+
   const handleAddEpreuve = async () => {
     if (!newEpreuveName.trim()) return;
     await addEpreuve({ id: crypto.randomUUID(), name: newEpreuveName.trim(), disciplines: [] });
@@ -49,6 +51,16 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
         await updateEpreuve({
           ...ep,
           disciplines: ep.disciplines.filter(d => d.id !== discId)
+        });
+    }
+  };
+
+  const handeUpdateDiscipline = async (epreuveId: string, updatedDisc: any) => {
+    const ep = epreuves.find(e => e.id === epreuveId);
+    if (ep) {
+        await updateEpreuve({
+          ...ep,
+          disciplines: ep.disciplines.map(d => d.id === updatedDisc.id ? updatedDisc : d)
         });
     }
   };
@@ -128,14 +140,209 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                     </button>
                   </div>
                   
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {epreuve.disciplines.map(d => (
-                      <span key={d.id} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        {d.name}
-                        <button onClick={() => handleDeleteDiscipline(epreuve.id, d.id)} className="hover:bg-emerald-200 p-0.5 rounded-md transition-colors text-emerald-600 hover:text-emerald-900">
-                          <X className="h-3 w-3" />
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Poste Départ</label>
+                      <input 
+                        type="text" 
+                        value={epreuve.startStation || ''} 
+                        onChange={(e) => updateEpreuve({...epreuve, startStation: e.target.value})}
+                        className="w-full px-2 py-1 text-xs bg-white border border-slate-200 rounded focus:outline-none focus:border-emerald-500"
+                        placeholder="Ex: 31"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase">Poste Arrivée</label>
+                      <input 
+                        type="text" 
+                        value={epreuve.endStation || ''} 
+                        onChange={(e) => updateEpreuve({...epreuve, endStation: e.target.value})}
+                        className="w-full px-2 py-1 text-xs bg-white border border-slate-200 rounded focus:outline-none focus:border-emerald-500"
+                        placeholder="Ex: 99"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-3 space-y-2 border-l-2 border-orange-300 pl-2">
+                    <div className="flex justify-between items-center">
+                      <div className="font-semibold text-[10px] text-orange-600 uppercase tracking-wider">⏳ Gels du Temps (Neutralisations)</div>
+                      <button
+                        onClick={() => {
+                          const newNeut = { id: crypto.randomUUID(), name: '', startStation: '', endStation: '' };
+                          updateEpreuve({ ...epreuve, neutralizations: [...(epreuve.neutralizations || []), newNeut] });
+                        }}
+                        className="text-[10px] bg-orange-50 text-orange-600 px-2 py-0.5 rounded border border-orange-200 hover:bg-orange-100 transition-colors"
+                      >
+                        + Ajouter Gel
+                      </button>
+                    </div>
+                    {(epreuve.neutralizations || []).map(neut => (
+                      <div key={neut.id} className="flex items-center gap-1.5 bg-orange-50/50 p-1 rounded border border-orange-100">
+                        <input 
+                          placeholder="Ex: Traversée route"
+                          value={neut.name}
+                          onChange={(e) => {
+                            const newNeuts = epreuve.neutralizations!.map(n => n.id === neut.id ? {...n, name: e.target.value} : n);
+                            updateEpreuve({...epreuve, neutralizations: newNeuts});
+                          }}
+                          className="flex-1 px-1.5 py-1 text-xs bg-white border border-orange-200 rounded focus:outline-none text-orange-900"
+                        />
+                        <input 
+                          placeholder="Début"
+                          value={neut.startStation}
+                          onChange={(e) => {
+                            const newNeuts = epreuve.neutralizations!.map(n => n.id === neut.id ? {...n, startStation: e.target.value} : n);
+                            updateEpreuve({...epreuve, neutralizations: newNeuts});
+                          }}
+                          className="w-12 px-1 py-1 text-xs bg-white border border-orange-200 rounded focus:outline-none text-center"
+                        />
+                        <span className="text-orange-300 text-xs">-</span>
+                        <input 
+                          placeholder="Fin"
+                          value={neut.endStation}
+                          onChange={(e) => {
+                            const newNeuts = epreuve.neutralizations!.map(n => n.id === neut.id ? {...n, endStation: e.target.value} : n);
+                            updateEpreuve({...epreuve, neutralizations: newNeuts});
+                          }}
+                          className="w-12 px-1 py-1 text-xs bg-white border border-orange-200 rounded focus:outline-none text-center"
+                        />
+                        <button 
+                          onClick={() => {
+                            const newNeuts = epreuve.neutralizations!.filter(n => n.id !== neut.id);
+                            updateEpreuve({...epreuve, neutralizations: newNeuts});
+                          }}
+                          className="p-1 text-orange-400 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3" />
                         </button>
-                      </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col gap-2 mb-3">
+                    {epreuve.disciplines.map(d => (
+                      <div key={d.id} className="bg-white border border-emerald-100 rounded-lg p-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <div className="font-bold text-emerald-800 flex items-center gap-2">
+                             {d.name}
+                             <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase font-semibold border border-slate-200">
+                               {d.isCO ? 'Course Orientation' : 'Linéaire'}
+                             </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button 
+                              onClick={() => setExpandedDisciplineId(expandedDisciplineId === d.id ? null : d.id)}
+                              className="px-2 py-1 bg-slate-50 text-slate-500 rounded hover:bg-slate-100 transition-colors font-medium text-[10px] border border-slate-200"
+                            >
+                              ⚙️ Configurer
+                            </button>
+                            <button onClick={() => handleDeleteDiscipline(epreuve.id, d.id)} className="p-1 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded transition-colors">
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {expandedDisciplineId === d.id && (
+                          <div className="mt-3 pt-3 border-t border-emerald-50 flex flex-col gap-3">
+                             <div className="flex items-center gap-2">
+                               <input 
+                                 type="checkbox" 
+                                 id={`co-${d.id}`}
+                                 checked={!!d.isCO} 
+                                 onChange={(e) => handeUpdateDiscipline(epreuve.id, {...d, isCO: e.target.checked})}
+                               />
+                               <label htmlFor={`co-${d.id}`} className="font-semibold text-slate-700">Il s'agit d'une Course d'Orientation (CO)</label>
+                             </div>
+
+                             {d.isCO && (
+                               <div className="bg-emerald-50/50 p-2 rounded border border-emerald-100/50 space-y-2">
+                                  <div className="font-semibold text-slate-700 mb-1">Mode de validation des balises :</div>
+                                  <select 
+                                    value={d.coOrderMode || 'free'}
+                                    onChange={(e) => handeUpdateDiscipline(epreuve.id, {...d, coOrderMode: e.target.value})}
+                                    className="w-full px-2 py-1.5 bg-white border border-emerald-200 rounded focus:outline-none focus:border-emerald-500"
+                                  >
+                                    <option value="free">Ordre Libre (Toutes les balises, n'importe quel ordre)</option>
+                                    <option value="imposed">Ordre Imposé strict</option>
+                                    <option value="grouped">Par Groupe (Blocs imposés, mais choix de l'ordre des blocs)</option>
+                                  </select>
+
+                                  <div className="mt-2">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase mb-1 block">
+                                      {d.coOrderMode === 'grouped' ? 'Configuration des blocs (ex: 31>32>33 | 41>42)' : 'Liste des balises attendues (ex: 31, 32, 33)'}
+                                    </label>
+                                    <input 
+                                      type="text" 
+                                      value={d.coStations || ''}
+                                      onChange={(e) => handeUpdateDiscipline(epreuve.id, {...d, coStations: e.target.value})}
+                                      placeholder={d.coOrderMode === 'grouped' ? '31>32>33 | 41>42' : '31, 32, 33'}
+                                      className="w-full px-2 py-1.5 bg-white border border-emerald-200 rounded focus:outline-none focus:border-emerald-500 font-mono"
+                                    />
+                                  </div>
+                               </div>
+                             )}
+
+                             <div className="space-y-2">
+                               <div className="flex justify-between items-center">
+                                  <div className="font-semibold text-slate-700">Traces / Segments (ex: Segment Strava)</div>
+                                  <button
+                                     onClick={() => {
+                                        const newSeg = { id: crypto.randomUUID(), name: '', startStation: '', endStation: '' };
+                                        handeUpdateDiscipline(epreuve.id, {...d, segments: [...(d.segments || []), newSeg]});
+                                     }}
+                                     className="text-[10px] bg-slate-100 text-slate-600 px-2 py-1 rounded hover:bg-slate-200"
+                                  >
+                                    + Ajouter
+                                  </button>
+                               </div>
+                               {(d.segments || []).map(seg => (
+                                 <div key={seg.id} className="flex items-center gap-2 bg-slate-50 p-1.5 rounded border border-slate-200">
+                                   <input 
+                                     placeholder="Nom du segment..."
+                                     value={seg.name}
+                                     onChange={(e) => {
+                                       const newSegs = d.segments!.map(s => s.id === seg.id ? {...s, name: e.target.value} : s);
+                                       handeUpdateDiscipline(epreuve.id, {...d, segments: newSegs});
+                                     }}
+                                     className="flex-1 px-2 py-1 bg-white border border-slate-200 rounded focus:outline-none"
+                                   />
+                                   <input 
+                                     placeholder="Départ"
+                                     value={seg.startStation}
+                                     onChange={(e) => {
+                                       const newSegs = d.segments!.map(s => s.id === seg.id ? {...s, startStation: e.target.value} : s);
+                                       handeUpdateDiscipline(epreuve.id, {...d, segments: newSegs});
+                                     }}
+                                     className="w-16 px-2 py-1 bg-white border border-slate-200 rounded focus:outline-none placeholder-slate-400"
+                                   />
+                                   <span className="text-slate-400">→</span>
+                                   <input 
+                                     placeholder="Arrivée"
+                                     value={seg.endStation}
+                                     onChange={(e) => {
+                                       const newSegs = d.segments!.map(s => s.id === seg.id ? {...s, endStation: e.target.value} : s);
+                                       handeUpdateDiscipline(epreuve.id, {...d, segments: newSegs});
+                                     }}
+                                     className="w-16 px-2 py-1 bg-white border border-slate-200 rounded focus:outline-none placeholder-slate-400"
+                                   />
+                                   <button 
+                                     onClick={() => {
+                                       const newSegs = d.segments!.filter(s => s.id !== seg.id);
+                                       handeUpdateDiscipline(epreuve.id, {...d, segments: newSegs});
+                                     }}
+                                     className="p-1 text-slate-400 hover:text-red-500"
+                                   >
+                                     <Trash2 className="h-3 w-3" />
+                                   </button>
+                                 </div>
+                               ))}
+                               {!(d.segments && d.segments.length > 0) && (
+                                  <div className="text-[10px] text-slate-400 italic">Aucun segment particulier défini.</div>
+                               )}
+                             </div>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
 

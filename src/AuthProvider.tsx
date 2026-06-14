@@ -1,9 +1,12 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { auth } from "./firebase";
-import { User, signInAnonymously, signOut } from "firebase/auth";
+
+// Fake user type to satisfy existing types
+interface FakeUser {
+  uid: string;
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: FakeUser | null;
   loading: boolean;
   signIn: () => Promise<void>;
   logOut: () => Promise<void>;
@@ -12,23 +15,29 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<FakeUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      setUser(user);
-      setLoading(false);
-    });
-    return unsubscribe;
+    // Check local storage for dummy auth session
+    const isLogged = localStorage.getItem('chrono_auth_session');
+    if (isLogged === 'true') {
+      setUser({ uid: 'authenticated' });
+    } else {
+      setUser(null);
+    }
+    setLoading(false);
   }, []);
 
   const signIn = async () => {
-    await signInAnonymously(auth);
+    // Actually we don't even need a password here, App.tsx checks it before calling signIn
+    localStorage.setItem('chrono_auth_session', 'true');
+    setUser({ uid: 'authenticated' });
   };
 
   const logOut = async () => {
-    await signOut(auth);
+    localStorage.removeItem('chrono_auth_session');
+    setUser(null);
   };
 
   return (
