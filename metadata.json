@@ -1,0 +1,6 @@
+{
+  "name": "Chrono-Raid Web",
+  "description": "Logiciel de chronométrage web pour appareils SportIdent avec API Web Serial et support CSV Klikego.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
