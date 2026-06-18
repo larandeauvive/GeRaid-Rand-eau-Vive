@@ -27,15 +27,15 @@ service cloud.firestore {
     }
 
     match /competitors/{competitorId} {
-      allow read, write: if isSignedIn() && isValidId(competitorId);
+      allow read, write: if isSignedIn();
     }
 
     match /epreuves/{epreuveId} {
-       allow read, write: if isSignedIn() && isValidId(epreuveId);
+       allow read, write: if isSignedIn();
     }
 
     match /logs/{logId} {
-       allow read, write: if isSignedIn() && isValidId(logId);
+       allow read, write: if isSignedIn();
     }
   }
 }

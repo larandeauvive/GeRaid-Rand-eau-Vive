@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
 import { format } from 'date-fns';
 import { Activity, Usb, Save, Upload, Trash2, Users, Clock, ArrowRightLeft, Settings, LogOut, CheckCircle2 } from 'lucide-react';
 import { useSportIdent } from './hooks/useSportIdent';
 import { Competitor } from './types';
 import { ConfigurationTab } from './components/ConfigurationTab';
+import { CompetitorsTab } from './components/CompetitorsTab';
 import { ImportMapper } from './components/ImportMapper';
 import { useAuth } from './AuthProvider';
 import { useCompetitors, useFrameLogs, useEpreuves } from './firestoreHooks';
@@ -22,7 +23,7 @@ export default function App() {
   const { epreuves } = useEpreuves();
   const { addLog } = useFrameLogs();
   
-  const [activeTab, setActiveTab] = useState<'logs' | 'competitors' | 'settings'>('settings');
+  const [activeTab, setActiveTab] = useState<'logs' | 'results' | 'competitors' | 'epreuves'>('epreuves');
   const [importState, setImportState] = useState<{headers: string[], data: any[]}|null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -280,33 +281,42 @@ export default function App() {
         <div className="md:col-span-8 lg:col-span-9 flex flex-col gap-4 min-h-0">
           
           {/* Tabs header card */}
-          <div className="bg-white rounded-3xl p-2 border border-slate-200 shadow-sm flex shrink-0">
+          <div className="bg-white rounded-3xl p-2 border border-slate-200 shadow-sm flex shrink-0 overflow-x-auto">
             <button
               onClick={() => setActiveTab('logs')}
-              className={`flex-1 py-3 px-4 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-3 px-4 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
                 activeTab === 'logs' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
               <ArrowRightLeft className="h-4 w-4" />
-              <span className="hidden sm:inline">Live Serial Feed</span> ({logs.length})
+              <span className="hidden sm:inline">Live Logs</span> ({logs.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('results')}
+              className={`flex-1 py-3 px-4 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
+                activeTab === 'results' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <Clock className="h-4 w-4" />
+              <span className="hidden sm:inline">Résultats Live</span>
             </button>
             <button
               onClick={() => setActiveTab('competitors')}
-              className={`flex-1 py-3 px-4 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 transition-all ${
+              className={`flex-1 py-3 px-4 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
                 activeTab === 'competitors' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
               <Users className="h-4 w-4" />
-              <span className="hidden sm:inline">Listing Concurrents</span> ({competitors.length})
+              <span className="hidden sm:inline">Concurrents</span> ({competitors.length})
             </button>
             <button
-              onClick={() => setActiveTab('settings')}
-              className={`flex-1 py-3 px-4 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 transition-all ${
-                activeTab === 'settings' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              onClick={() => setActiveTab('epreuves')}
+              className={`flex-1 py-3 px-4 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
+                activeTab === 'epreuves' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
               <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Course & Paramètres</span>
+              <span className="hidden sm:inline">Parcours</span>
             </button>
           </div>
 
@@ -381,8 +391,8 @@ export default function App() {
             </div>
           )}
 
-          {/* Tab Content: Competitors (Recent History Style) */}
-          {activeTab === 'competitors' && (
+          {/* Tab Content: Results (Recent History Style) */}
+          {activeTab === 'results' && (
             <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col h-full overflow-hidden">
               <div className="flex justify-between items-center mb-6 shrink-0">
                 <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">Competitors List</h3>
@@ -447,8 +457,13 @@ export default function App() {
             </div>
           )}
 
-          {/* Tab Content: Settings */}
-          {activeTab === 'settings' && (
+          {/* Tab Content: Parcours */}
+          {activeTab === 'epreuves' && (
+            <ConfigurationTab onTriggerImport={handleKlikegoClick} />
+          )}
+
+          {/* Tab Content: Competitors Editor */}
+          {activeTab === 'competitors' && (
             importState ? (
               <ImportMapper 
                 headers={importState.headers} 
@@ -457,9 +472,9 @@ export default function App() {
                 onCancel={handleCancelImport} 
               />
             ) : (
-              <ConfigurationTab 
-                onTriggerImport={handleKlikegoClick} 
-              />
+              <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col h-full overflow-hidden">
+                <CompetitorsTab onTriggerImport={handleKlikegoClick} />
+              </div>
             )
           )}
 
