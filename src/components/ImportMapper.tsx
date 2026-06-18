@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Target, CheckCircle2, AlertCircle, Save } from 'lucide-react';
 import { Competitor } from '../types';
+import { generateId } from '../utils';
 
 interface ImportMapperProps {
   headers: string[];
@@ -43,7 +44,7 @@ export function ImportMapper({ headers, data, onConfirm, onCancel }: ImportMappe
     const newCompetitors: Competitor[] = data
       .filter(row => Object.keys(row).length > 0 && row[mapping['bib']] && row[mapping['lastName']])
       .map(row => ({
-        id: crypto.randomUUID(),
+        id: generateId(),
         bib: row[mapping['bib']] || '',
         chipNumber: row[mapping['chipNumber']] || '',
         lastName: row[mapping['lastName']] || '',

@@ -3,6 +3,8 @@ import { Competitor } from '../types';
 import { useCompetitors, useEpreuves } from '../firestoreHooks';
 import { Upload, Plus, Check, X, Edit2, Trash2 } from 'lucide-react';
 
+import { generateId } from '../utils';
+
 interface CompetitorsTabProps {
   onTriggerImport: () => void;
 }
@@ -35,7 +37,7 @@ export function CompetitorsTab({ onTriggerImport }: CompetitorsTabProps) {
   };
 
   const handleAddCompetitor = () => {
-    const newCompId = crypto.randomUUID();
+    const newCompId = generateId();
     setEditingCompetitorId(newCompId);
     setEditForm({
       id: newCompId,

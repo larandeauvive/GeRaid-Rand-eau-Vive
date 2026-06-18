@@ -15,6 +15,8 @@ interface ConfigurationTabProps {
   onTriggerImport: () => void;
 }
 
+import { generateId } from '../utils';
+
 export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
   const { epreuves, addEpreuve, updateEpreuve, deleteEpreuve } = useEpreuves();
 
@@ -26,7 +28,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
 
   const handleAddEpreuve = async () => {
     if (!newEpreuveName.trim()) return;
-    const newId = crypto.randomUUID();
+    const newId = generateId();
     await addEpreuve({ id: newId, name: newEpreuveName.trim(), disciplines: [] });
     setNewEpreuveName('');
     setSelectedEpreuveId(newId);
@@ -49,7 +51,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
     
     const ep = epreuves.find(e => e.id === epreuveId);
     if (ep) {
-        const newDiscId = crypto.randomUUID();
+        const newDiscId = generateId();
         await updateEpreuve({
           ...ep,
           disciplines: [...ep.disciplines, { id: newDiscId, name: val.trim() }]
@@ -295,7 +297,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                     <h4 className="font-bold text-slate-700 text-sm">Traces / Segments (Classements spécifiques)</h4>
                     <button
                        onClick={() => {
-                          const newSeg = { id: crypto.randomUUID(), name: '', startStation: '', endStation: '' };
+                          const newSeg = { id: generateId(), name: '', startStation: '', endStation: '' };
                           handleUpdateDiscipline(selectedEpreuveId, {...selectedDiscipline, segments: [...(selectedDiscipline.segments || []), newSeg]});
                        }}
                        className="text-xs font-bold bg-slate-900 text-white px-3 py-1.5 rounded-lg hover:bg-slate-800 transition-colors"
@@ -395,7 +397,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                 </div>
                 <button
                   onClick={() => {
-                    const newNeut = { id: crypto.randomUUID(), name: '', startStation: '', endStation: '' };
+                    const newNeut = { id: generateId(), name: '', startStation: '', endStation: '' };
                     updateEpreuve({ ...selectedEpreuve, neutralizations: [...(selectedEpreuve.neutralizations || []), newNeut] });
                   }}
                   className="text-xs font-bold bg-orange-100 text-orange-800 px-3 py-1.5 rounded-lg hover:bg-orange-200 transition-colors"

@@ -3,6 +3,7 @@ import { collection, onSnapshot, doc, setDoc, query, deleteDoc, updateDoc } from
 import { db, handleFirestoreError, OperationType } from "./firebase";
 import { Competitor, Epreuve, FrameLog } from "./types";
 import { useAuth } from "./AuthProvider";
+import { generateId } from "./utils";
 
 export function useCompetitors() {
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
@@ -29,7 +30,7 @@ export function useCompetitors() {
 
   const addCompetitor = async (comp: Omit<Competitor, "id"> | Competitor) => {
     try {
-      const id = (comp as Competitor).id || crypto.randomUUID();
+      const id = (comp as Competitor).id || generateId();
       await setDoc(doc(db, "competitors", id), comp);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, "competitors");
@@ -87,7 +88,7 @@ export function useEpreuves() {
 
   const addEpreuve = async (item: Omit<Epreuve, "id"> | Epreuve) => {
     try {
-      const id = (item as Epreuve).id || crypto.randomUUID();
+      const id = (item as Epreuve).id || generateId();
       await setDoc(doc(db, "epreuves", id), item);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, "epreuves");
@@ -146,7 +147,7 @@ export function useFrameLogs() {
 
   const addLog = async (log: Omit<FrameLog, "id"> | FrameLog) => {
     try {
-      const id = (log as FrameLog).id || crypto.randomUUID();
+      const id = (log as FrameLog).id || generateId();
       const payload: any = {
         ...log,
         timestamp: (log.timestamp as Date).toISOString() // Store as ISO string

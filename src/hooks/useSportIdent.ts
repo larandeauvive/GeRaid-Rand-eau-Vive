@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { FrameLog } from '../types';
 import { useFrameLogs } from '../firestoreHooks';
+import { generateId } from '../utils';
 
 export function useSportIdent() {
   const [isConnected, setIsConnected] = useState(false);
@@ -76,7 +77,7 @@ export function useSportIdent() {
     }
 
     const newLog: FrameLog = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       timestamp: new Date(),
       hexData: hexString,
       rawData: bytes, 
