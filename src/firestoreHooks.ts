@@ -28,10 +28,21 @@ export function useCompetitors() {
     return () => unsubscribe();
   }, [user]);
 
+  const cleanPayload = (obj: any): any => {
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (obj instanceof Date) return obj;
+    if (Array.isArray(obj)) return obj.map(cleanPayload).filter(v => v !== undefined);
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, v]) => v !== undefined)
+        .map(([k, v]) => [k, cleanPayload(v)])
+    );
+  };
+
   const addCompetitor = async (comp: Omit<Competitor, "id"> | Competitor) => {
     try {
       const id = (comp as Competitor).id || generateId();
-      await setDoc(doc(db, "competitors", id), comp);
+      await setDoc(doc(db, "competitors", id), cleanPayload(comp));
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, "competitors");
     }
@@ -47,7 +58,7 @@ export function useCompetitors() {
 
   const updateCompetitor = async (comp: Competitor) => {
     try {
-      await updateDoc(doc(db, "competitors", comp.id), { ...comp });
+      await updateDoc(doc(db, "competitors", comp.id), cleanPayload(comp));
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `competitors/${comp.id}`);
     }
@@ -86,10 +97,21 @@ export function useEpreuves() {
     return () => unsubscribe();
   }, [user]);
 
+  const cleanPayload = (obj: any): any => {
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (obj instanceof Date) return obj;
+    if (Array.isArray(obj)) return obj.map(cleanPayload).filter(v => v !== undefined);
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, v]) => v !== undefined)
+        .map(([k, v]) => [k, cleanPayload(v)])
+    );
+  };
+
   const addEpreuve = async (item: Omit<Epreuve, "id"> | Epreuve) => {
     try {
       const id = (item as Epreuve).id || generateId();
-      await setDoc(doc(db, "epreuves", id), item);
+      await setDoc(doc(db, "epreuves", id), cleanPayload(item));
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, "epreuves");
     }
@@ -97,7 +119,7 @@ export function useEpreuves() {
 
   const updateEpreuve = async (item: Epreuve) => {
     try {
-      await updateDoc(doc(db, "epreuves", item.id), { ...item });
+      await updateDoc(doc(db, "epreuves", item.id), cleanPayload(item));
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `epreuves/${item.id}`);
     }

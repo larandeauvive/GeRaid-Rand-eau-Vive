@@ -27,9 +27,14 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
 
   // Sync from DB to Draft ONLY when switching epreuves or initial load
   useEffect(() => {
+    if (!selectedEpreuveId) {
+      setDraft(null);
+      return;
+    }
     const ep = epreuves.find(e => e.id === selectedEpreuveId);
     if (!ep) {
-        setDraft(null);
+        // Keep optimistic draft if we just created it but firestore hasn't synced back yet
+        setDraft(currentDraft => (currentDraft?.id === selectedEpreuveId ? currentDraft : null));
     } else if (!draft || draft.id !== ep.id) {
         setDraft(ep);
     }
@@ -49,16 +54,21 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
   );
 
   const updateDraft = (updates: Partial<Epreuve>) => {
-    if (!draft) return;
-    const newDraft = { ...draft, ...updates };
-    setDraft(newDraft);
-    saveDraft(newDraft);
+    setDraft(currentDraft => {
+        if (!currentDraft) return currentDraft;
+        const newDraft = { ...currentDraft, ...updates };
+        saveDraft(newDraft);
+        return newDraft;
+    });
   };
 
   const handleCreateEpreuve = async () => {
     const newId = generateId();
-    await addEpreuve({ id: newId, name: 'Nouvelle course', disciplines: [] });
+    const newEpreuve = { id: newId, name: 'Nouvelle course', disciplines: [] };
+    // Optimistic set
+    setDraft(newEpreuve);
     setSelectedEpreuveId(newId);
+    await addEpreuve(newEpreuve);
   };
 
   const handleDeleteEpreuve = async (id: string, e: React.MouseEvent) => {
@@ -74,23 +84,56 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
 
   // Section Handlers
   const handleAddDiscipline = () => {
-    if (!draft) return;
-    const newDisc: Discipline = { id: generateId(), name: `Section ${draft.disciplines.length + 1}` };
-    updateDraft({ disciplines: [...draft.disciplines, newDisc] });
+    setDraft(currentDraft => {
+        if (!currentDraft) return currentDraft;
+        const newDisc: Discipline = { id: generateId(), name: `Section ${currentDraft.disciplines.length + 1}` };
+        const newDraft = { ...currentDraft, disciplines: [...currentDraft.disciplines, newDisc] };
+        saveDraft(newDraft);
+        return newDraft;
+    });
   };
 
   const handleUpdateDiscipline = (discId: string, updates: Partial<Discipline>) => {
-    if (!draft) return;
-    const newDisciplines = draft.disciplines.map(d => d.id === discId ? { ...d, ...updates } : d);
-    updateDraft({ disciplines: newDisciplines });
+    setDraft(currentDraft => {
+        if (!currentDraft) return currentDraft;
+        const newDisciplines = currentDraft.disciplines.map(d => d.id === discId ? { ...d, ...updates } : d);
+        const newDraft = { ...currentDraft, disciplines: newDisciplines };
+        saveDraft(newDraft);
+        return newDraft;
+    });
   };
 
   const handleDeleteDiscipline = (discId: string) => {
-    if (!draft) return;
     if (confirm("Supprimer cette section ?")) {
-        const newDisciplines = draft.disciplines.filter(d => d.id !== discId);
-        updateDraft({ disciplines: newDisciplines });
+        setDraft(currentDraft => {
+            if (!currentDraft) return currentDraft;
+            const newDisciplines = currentDraft.disciplines.filter(d => d.id !== discId);
+            const newDraft = { ...currentDraft, disciplines: newDisciplines };
+            saveDraft(newDraft);
+            return newDraft;
+        });
     }
+  };
+
+  const handleUpdateNeutralizations = (updater: (neuts: SpecialSegment[]) => SpecialSegment[]) => {
+      setDraft(currentDraft => {
+          if (!currentDraft) return currentDraft;
+          const newDraft = { ...currentDraft, neutralizations: updater(currentDraft.neutralizations || []) };
+          saveDraft(newDraft);
+          return newDraft;
+      });
+  };
+
+  const handleUpdateSegments = (discId: string, updater: (segs: SpecialSegment[]) => SpecialSegment[]) => {
+      setDraft(currentDraft => {
+          if (!currentDraft) return currentDraft;
+          const newDisciplines = currentDraft.disciplines.map(d => 
+              d.id === discId ? { ...d, segments: updater(d.segments || []) } : d
+          );
+          const newDraft = { ...currentDraft, disciplines: newDisciplines };
+          saveDraft(newDraft);
+          return newDraft;
+      });
   };
 
   return (
@@ -271,7 +314,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                   <button
                     onClick={() => {
                       const newNeut = { id: generateId(), name: '', startStation: '', endStation: '' };
-                      updateDraft({ neutralizations: [...(draft.neutralizations || []), newNeut] });
+                      handleUpdateNeutralizations(neuts => [...neuts, newNeut]);
                     }}
                     className="shrink-0 text-sm font-bold bg-orange-50 text-orange-700 border border-orange-200 py-2 px-4 rounded-xl hover:bg-orange-100 transition-colors flex items-center justify-center gap-2"
                   >
@@ -293,8 +336,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                                 placeholder="Ex: Traversée de route"
                                 value={neut.name}
                                 onChange={(e) => {
-                                  const newNeuts = draft.neutralizations!.map(n => n.id === neut.id ? {...n, name: e.target.value} : n);
-                                  updateDraft({ neutralizations: newNeuts });
+                                  handleUpdateNeutralizations(neuts => neuts.map(n => n.id === neut.id ? {...n, name: e.target.value} : n));
                                 }}
                                 className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 font-bold text-slate-700"
                               />
@@ -306,8 +348,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                                   placeholder="Balise"
                                   value={neut.startStation}
                                   onChange={(e) => {
-                                    const newNeuts = draft.neutralizations!.map(n => n.id === neut.id ? {...n, startStation: e.target.value} : n);
-                                    updateDraft({ neutralizations: newNeuts });
+                                    handleUpdateNeutralizations(neuts => neuts.map(n => n.id === neut.id ? {...n, startStation: e.target.value} : n));
                                   }}
                                   className="w-full px-2 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-center font-mono font-bold text-slate-700 placeholder:font-sans"
                                 />
@@ -319,8 +360,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                                   placeholder="Balise"
                                   value={neut.endStation}
                                   onChange={(e) => {
-                                    const newNeuts = draft.neutralizations!.map(n => n.id === neut.id ? {...n, endStation: e.target.value} : n);
-                                    updateDraft({ neutralizations: newNeuts });
+                                    handleUpdateNeutralizations(neuts => neuts.map(n => n.id === neut.id ? {...n, endStation: e.target.value} : n));
                                   }}
                                   className="w-full px-2 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 text-center font-mono font-bold text-slate-700 placeholder:font-sans"
                                 />
@@ -328,8 +368,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                             <div className="pt-4 ml-2">
                                 <button 
                                   onClick={() => {
-                                    const newNeuts = draft.neutralizations!.filter(n => n.id !== neut.id);
-                                    updateDraft({ neutralizations: newNeuts });
+                                    handleUpdateNeutralizations(neuts => neuts.filter(n => n.id !== neut.id));
                                   }}
                                   className="p-2.5 text-slate-400 hover:text-red-600 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 transition-all rounded-xl shadow-sm shrink-0"
                                   title="Supprimer la neutralisation"
@@ -538,7 +577,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                                 <button
                                   onClick={() => {
                                     const newSeg = { id: generateId(), name: '', startStation: '', endStation: '' };
-                                    handleUpdateDiscipline(disc.id, { segments: [...(disc.segments || []), newSeg] });
+                                    handleUpdateSegments(disc.id, segs => [...segs, newSeg]);
                                   }}
                                   className="shrink-0 text-sm font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-4 py-2.5 rounded-xl hover:bg-indigo-100 transition-colors flex items-center gap-2"
                                 >
@@ -562,8 +601,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                                             placeholder="Ex: Ascension du col"
                                             value={seg.name}
                                             onChange={(e) => {
-                                              const newSegs = disc.segments!.map(s => s.id === seg.id ? {...s, name: e.target.value} : s);
-                                              handleUpdateDiscipline(disc.id, { segments: newSegs });
+                                              handleUpdateSegments(disc.id, segs => segs.map(s => s.id === seg.id ? {...s, name: e.target.value} : s));
                                             }}
                                             className="w-full px-3 py-2.5 text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                                           />
@@ -575,8 +613,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                                               placeholder="Balise"
                                               value={seg.startStation}
                                               onChange={(e) => {
-                                                const newSegs = disc.segments!.map(s => s.id === seg.id ? {...s, startStation: e.target.value} : s);
-                                                handleUpdateDiscipline(disc.id, { segments: newSegs });
+                                                handleUpdateSegments(disc.id, segs => segs.map(s => s.id === seg.id ? {...s, startStation: e.target.value} : s));
                                               }}
                                               className="w-full px-2 py-2.5 text-sm font-mono font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-center focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                                             />
@@ -588,8 +625,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                                               placeholder="Balise"
                                               value={seg.endStation}
                                               onChange={(e) => {
-                                                const newSegs = disc.segments!.map(s => s.id === seg.id ? {...s, endStation: e.target.value} : s);
-                                                handleUpdateDiscipline(disc.id, { segments: newSegs });
+                                                handleUpdateSegments(disc.id, segs => segs.map(s => s.id === seg.id ? {...s, endStation: e.target.value} : s));
                                               }}
                                               className="w-full px-2 py-2.5 text-sm font-mono font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl text-center focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
                                             />
@@ -597,8 +633,7 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                                         <div className="pt-4 ml-2">
                                             <button 
                                               onClick={() => {
-                                                const newSegs = disc.segments!.filter(s => s.id !== seg.id);
-                                                handleUpdateDiscipline(disc.id, { segments: newSegs });
+                                                handleUpdateSegments(disc.id, segs => segs.filter(s => s.id !== seg.id));
                                               }}
                                               className="p-3 text-slate-400 hover:text-red-500 bg-white hover:bg-red-50 transition-colors rounded-xl border border-slate-200 hover:border-red-200 shadow-sm shrink-0"
                                             >
