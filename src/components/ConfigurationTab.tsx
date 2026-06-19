@@ -273,19 +273,32 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                        <option value="grouped">Par Groupes (Blocs imposés, choix libre entre blocs)</option>
                      </select>
                      
-                     <div className="pt-2">
-                       <label className="text-xs font-bold text-orange-600 block mb-1">
-                         {selectedDiscipline.coOrderMode === 'grouped' 
-                            ? 'Configuration des blocs (ex: 31>32>33 | 41>42)' 
-                            : 'Liste des balises attendues (séparées par virgule, ex: 31, 32, 33)'}
-                       </label>
-                       <input 
-                         type="text" 
-                         value={selectedDiscipline.coStations || ''}
-                         onChange={(e) => handleUpdateDiscipline(selectedEpreuveId, {...selectedDiscipline, coStations: e.target.value})}
-                         placeholder={selectedDiscipline.coOrderMode === 'grouped' ? '31>32>33 | 41>42' : '31, 32, 33'}
-                         className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 font-mono text-sm"
-                       />
+                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
+                       <div className="md:col-span-1">
+                         <label className="text-xs font-bold text-orange-600 block mb-1">Nombre</label>
+                         <input 
+                           type="number" 
+                           value={selectedDiscipline.coCount || ''}
+                           onChange={(e) => handleUpdateDiscipline(selectedEpreuveId, {...selectedDiscipline, coCount: parseInt(e.target.value, 10) || undefined})}
+                           placeholder="Ex: 5"
+                           min="0"
+                           className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 font-mono text-sm"
+                         />
+                       </div>
+                       <div className="md:col-span-3">
+                         <label className="text-xs font-bold text-orange-600 block mb-1 truncate" title={selectedDiscipline.coOrderMode === 'grouped' ? 'Configuration des blocs' : 'Numéros des balises (séparées par virgule)'}>
+                           {selectedDiscipline.coOrderMode === 'grouped' 
+                              ? 'Blocs (ex: 31>32>33 | 41>42)' 
+                              : 'Numéros des balises (ex: 31, 32, 33)'}
+                         </label>
+                         <input 
+                           type="text" 
+                           value={selectedDiscipline.coStations || ''}
+                           onChange={(e) => handleUpdateDiscipline(selectedEpreuveId, {...selectedDiscipline, coStations: e.target.value})}
+                           placeholder={selectedDiscipline.coOrderMode === 'grouped' ? '31>32>33 | 41>42' : '31, 32, 33'}
+                           className="w-full px-3 py-2 bg-white border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 font-mono text-sm"
+                         />
+                       </div>
                      </div>
                   </div>
                 </div>
@@ -366,9 +379,9 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
               Épreuve: <span className="text-emerald-700">{selectedEpreuve.name}</span>
             </h3>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Station de Départ Global</label>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Départ Global</label>
                 <input 
                   type="text" 
                   value={selectedEpreuve.startStation || ''} 
@@ -378,13 +391,23 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                 />
               </div>
               <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Station d'Arrivée Globale</label>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Arrivée Globale</label>
                 <input 
                   type="text" 
                   value={selectedEpreuve.endStation || ''} 
                   onChange={(e) => updateEpreuve({...selectedEpreuve, endStation: e.target.value})}
                   className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-mono"
                   placeholder="Ex: 99"
+                />
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm md:col-span-1">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2" title="Checkpoints obligatoires séparés par des virgules">Checkpoints</label>
+                <input 
+                  type="text" 
+                  value={selectedEpreuve.checkpoints || ''} 
+                  onChange={(e) => updateEpreuve({...selectedEpreuve, checkpoints: e.target.value})}
+                  className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 font-mono"
+                  placeholder="Ex: 40,41,45"
                 />
               </div>
             </div>
