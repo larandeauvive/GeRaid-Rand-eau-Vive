@@ -20,7 +20,7 @@ import { useCompetitors, useFrameLogs, useEpreuves } from './firestoreHooks';
 export default function App() {
   const { user, signIn, logOut } = useAuth();
   
-  const { isConnected, connect, disconnect, logs, clearLogs } = useSportIdent();
+  const { isConnected, connect, disconnect, logs, clearLogs, lastReadChipNumber, setLastReadChipNumber } = useSportIdent();
   const { competitors, addCompetitorsBatch } = useCompetitors();
   const { epreuves } = useEpreuves();
   const { addLog } = useFrameLogs();
@@ -92,7 +92,7 @@ export default function App() {
             headers: results.meta.fields || [],
             data: results.data
           });
-          setActiveTab('settings');
+          setActiveTab('competitors');
         },
         error: (error) => {
           console.error("Erreur de parsing CSV:", error);
@@ -122,7 +122,7 @@ export default function App() {
             headers: headers || [],
             data: rows
           });
-          setActiveTab('settings');
+          setActiveTab('competitors');
         }
       };
       reader.onerror = (error) => {
@@ -388,7 +388,11 @@ export default function App() {
               />
             ) : (
               <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col h-full overflow-hidden">
-                <CompetitorsTab onTriggerImport={handleKlikegoClick} />
+                <CompetitorsTab 
+                  onTriggerImport={handleKlikegoClick} 
+                  lastReadChipNumber={lastReadChipNumber}
+                  setLastReadChipNumber={setLastReadChipNumber}
+                />
               </div>
             )
           )}

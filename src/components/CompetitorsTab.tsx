@@ -1,22 +1,32 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Competitor } from '../types';
 import { useCompetitors, useEpreuves } from '../firestoreHooks';
-import { Upload, Plus, Check, X, Edit2, Trash2 } from 'lucide-react';
+import { Upload, Plus, Check, X, Edit2, Trash2, Usb } from 'lucide-react';
 
 import { generateId } from '../utils';
 
 interface CompetitorsTabProps {
   onTriggerImport: () => void;
+  lastReadChipNumber: string | null;
+  setLastReadChipNumber: (chip: string | null) => void;
 }
 
-export function CompetitorsTab({ onTriggerImport }: CompetitorsTabProps) {
+export function CompetitorsTab({ onTriggerImport, lastReadChipNumber, setLastReadChipNumber }: CompetitorsTabProps) {
   const { competitors, addCompetitor, updateCompetitor, deleteCompetitor } = useCompetitors();
   const { epreuves } = useEpreuves();
 
   const [editingCompetitorId, setEditingCompetitorId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<Competitor>>({});
 
+  useEffect(() => {
+    if (editingCompetitorId && lastReadChipNumber) {
+      setEditForm(prev => ({ ...prev, chipNumber: lastReadChipNumber }));
+      setLastReadChipNumber(null);
+    }
+  }, [lastReadChipNumber, editingCompetitorId, setLastReadChipNumber]);
+
   const handleEditClick = (comp: Competitor) => {
+    setLastReadChipNumber(null);
     setEditingCompetitorId(comp.id);
     setEditForm(comp);
   };
@@ -37,6 +47,7 @@ export function CompetitorsTab({ onTriggerImport }: CompetitorsTabProps) {
   };
 
   const handleAddCompetitor = () => {
+    setLastReadChipNumber(null);
     const newCompId = generateId();
     setEditingCompetitorId(newCompId);
     setEditForm({
@@ -96,12 +107,13 @@ export function CompetitorsTab({ onTriggerImport }: CompetitorsTabProps) {
                             className="w-full min-w-[3rem] px-2 py-1.5 text-xs bg-white border border-indigo-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono shadow-sm" placeholder="102" 
                           />
                         </td>
-                        <td className="px-2 py-2 align-top">
+                        <td className="px-2 py-2 align-top relative">
                           <input 
                             value={editForm.chipNumber || ''} 
                             onChange={e => setEditForm({...editForm, chipNumber: e.target.value})}
-                            className="w-full min-w-[5rem] px-2 py-1.5 text-xs bg-white border border-indigo-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono shadow-sm font-bold text-indigo-700" placeholder="SI-Card" 
+                            className="w-full min-w-[5rem] px-2 py-1.5 pr-6 text-xs bg-white border border-indigo-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono shadow-sm font-bold text-indigo-700" placeholder="SI-Card" 
                           />
+                          <Usb className="h-3 w-3 text-indigo-300 absolute right-4 top-4" title="Bippez une puce pour l'affecter" />
                         </td>
                         <td className="px-2 py-2 align-top flex flex-col gap-1.5 min-w-[10rem]">
                           <input 
@@ -156,12 +168,13 @@ export function CompetitorsTab({ onTriggerImport }: CompetitorsTabProps) {
                             className="w-full min-w-[3rem] px-2 py-1.5 text-xs bg-white border border-indigo-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono shadow-sm" placeholder="102" 
                           />
                         </td>
-                        <td className="px-2 py-2 align-top">
+                        <td className="px-2 py-2 align-top relative">
                           <input 
                             value={editForm.chipNumber || ''} 
                             onChange={e => setEditForm({...editForm, chipNumber: e.target.value})}
-                            className="w-full min-w-[5rem] px-2 py-1.5 text-xs bg-white border border-indigo-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono shadow-sm font-bold text-indigo-700" placeholder="SI-Card" 
+                            className="w-full min-w-[5rem] px-2 py-1.5 pr-6 text-xs bg-white border border-indigo-200 rounded-lg focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono shadow-sm font-bold text-indigo-700" placeholder="SI-Card" 
                           />
+                          <Usb className="h-3 w-3 text-indigo-300 absolute right-4 top-4" title="Bippez une puce pour l'affecter" />
                         </td>
                         <td className="px-2 py-2 align-top flex flex-col gap-1.5 min-w-[10rem]">
                           <input 

@@ -6,6 +6,7 @@ import { generateId } from '../utils';
 export function useSportIdent() {
   const [isConnected, setIsConnected] = useState(false);
   const { logs, addLog, clearAllLogs } = useFrameLogs();
+  const [lastReadChipNumber, setLastReadChipNumber] = useState<string | null>(null);
   const portRef = useRef<any>(null);
   const readerRef = useRef<any>(null);
 
@@ -67,6 +68,7 @@ export function useSportIdent() {
       
       const si = (bytes[4] << 24) | (bytes[5] << 16) | (bytes[6] << 8) | bytes[7];
       chipNumber = si.toString();
+      setLastReadChipNumber(chipNumber);
       
       // Time could be generic: HH MM SS
       // Assuming TH (9) = hours, TL (10) = mins, TSS (11) = secs
@@ -119,5 +121,5 @@ export function useSportIdent() {
     }
   };
 
-  return { isConnected, connect, disconnect, logs, clearLogs: clearAllLogs };
+  return { isConnected, connect, disconnect, logs, clearLogs: clearAllLogs, lastReadChipNumber, setLastReadChipNumber };
 }
