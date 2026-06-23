@@ -276,26 +276,49 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                       <p className="text-[11px] text-slate-500 font-medium mt-0.5">Paramètrez les balises qui encadrent toute l'épreuve.</p>
                   </div>
                 </div>
-                <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Le grand départ (Balise)</label>
-                    <input 
-                      type="text" 
-                      value={draft.startStation || ''} 
-                      onChange={(e) => updateDraft({ startStation: e.target.value })}
-                      className="w-full px-4 py-3 text-base bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono font-bold text-slate-700"
-                      placeholder="Ex: 31"
-                    />
+                <div className="p-6 grid grid-cols-1 md:grid-cols-4 gap-6 items-end">
+                  <div className="flex items-center h-[50px] mb-2">
+                    <label className="flex items-center gap-3 cursor-pointer p-3 bg-white w-full border border-slate-200 shadow-sm hover:border-indigo-300 rounded-xl transition-colors h-full">
+                      <input 
+                        type="checkbox" 
+                        checked={!!draft.isMassStart}
+                        onChange={(e) => {
+                            const checked = e.target.checked;
+                            updateDraft({ isMassStart: checked, startTime: checked ? draft.startTime : undefined, startStation: !checked ? draft.startStation : undefined });
+                        }}
+                        className="w-5 h-5 text-indigo-500 rounded border-slate-300 focus:ring-indigo-500 focus:ring-2 transition-all cursor-pointer"
+                      />
+                      <div className="select-none flex-1">
+                        <span className="font-bold text-slate-700 text-sm block">Départ Groupé</span>
+                        <span className="text-[10px] text-slate-500 leading-tight">Même heure pour tous</span>
+                      </div>
+                    </label>
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Heure de départ</label>
-                    <input 
-                      type="time" 
-                      value={draft.startTime || ''} 
-                      onChange={(e) => updateDraft({ startTime: e.target.value })}
-                      className="w-full px-4 py-3 text-base bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono font-bold text-slate-700"
-                    />
-                  </div>
+                  
+                  {draft.isMassStart ? (
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Heure de départ</label>
+                        <input 
+                          type="time" 
+                          step="1"
+                          value={draft.startTime || ''} 
+                          onChange={(e) => updateDraft({ startTime: e.target.value })}
+                          className="w-full px-4 py-3 text-base bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono font-bold text-slate-700"
+                        />
+                      </div>
+                  ) : (
+                      <div>
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Balise de Départ</label>
+                        <input 
+                          type="text" 
+                          value={draft.startStation || ''} 
+                          onChange={(e) => updateDraft({ startStation: e.target.value })}
+                          className="w-full px-4 py-3 text-base bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono font-bold text-slate-700"
+                          placeholder="Ex: Départ"
+                        />
+                      </div>
+                  )}
+
                   <div>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">L'arrivée finale (Balise)</label>
                     <input 
@@ -303,10 +326,39 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                       value={draft.endStation || ''} 
                       onChange={(e) => updateDraft({ endStation: e.target.value })}
                       className="w-full px-4 py-3 text-base bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono font-bold text-slate-700"
-                      placeholder="Ex: 99"
+                      placeholder="Ex: Arrivée"
                     />
                   </div>
-                  <div className="md:col-span-1">
+                  
+                  <div>
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Nombre de sections</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      max="20"
+                      value={draft.disciplines.length} 
+                      onChange={(e) => {
+                          const count = parseInt(e.target.value) || 0;
+                          let newDisciplines = [...draft.disciplines];
+                          if (count > newDisciplines.length) {
+                              const toAdd = count - newDisciplines.length;
+                              for (let i = 0; i < toAdd; i++) {
+                                  newDisciplines.push({
+                                      id: generateId(),
+                                      name: `Section ${newDisciplines.length + 1}`,
+                                      endStation: 'Arrivée',
+                                  });
+                              }
+                          } else if (count < newDisciplines.length) {
+                              newDisciplines = newDisciplines.slice(0, count);
+                          }
+                          updateDraft({ disciplines: newDisciplines });
+                      }}
+                      className="w-full px-4 py-3 text-base bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all font-mono font-bold text-slate-700"
+                    />
+                  </div>
+
+                  <div className="md:col-span-4 mt-2">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2">Points de passage</label>
                     <input 
                       type="text" 
@@ -477,60 +529,23 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                           <div className="p-4 sm:p-6 md:p-8 space-y-8">
                             
                             {/* Bornage et Départ */}
-                            <div className="flex flex-col gap-6 p-5 sm:p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                <div>
-                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2" title="Balise de départ de la section">Départ Section</label>
-                                  <input
-                                    type="text"
-                                    value={disc.startStation || ''}
-                                    onChange={(e) => handleUpdateDiscipline(disc.id, { startStation: e.target.value })}
-                                    className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 font-mono font-bold text-slate-700 shadow-sm"
-                                    placeholder="Ex: Départ, 31..."
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2" title="Balise d'arrivée de la section">Arrivée Section</label>
-                                  <input
-                                    type="text"
-                                    value={disc.endStation || ''}
-                                    onChange={(e) => handleUpdateDiscipline(disc.id, { endStation: e.target.value })}
-                                    className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 font-mono font-bold text-slate-700 shadow-sm"
-                                    placeholder="Ex: Arrivée, 99..."
-                                  />
-                                </div>
-                                <div className="flex items-center md:pt-6">
-                                  <label className="flex items-center gap-3 cursor-pointer p-3 bg-white w-full border border-slate-200 shadow-sm hover:border-emerald-300 rounded-xl transition-colors h-full">
-                                    <input 
-                                      type="checkbox" 
-                                      checked={!!disc.isMassStart}
-                                      onChange={(e) => {
-                                          const checked = e.target.checked;
-                                          handleUpdateDiscipline(disc.id, { isMassStart: checked, startTime: checked ? disc.startTime : undefined });
-                                      }}
-                                      className="w-5 h-5 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500 focus:ring-2 transition-all cursor-pointer"
+                            {index < draft.disciplines.length - 1 && (
+                              <div className="flex flex-col gap-6 p-5 sm:p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  <div>
+                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2" title="Balise qui marque la fin de cette section et le début de la suivante">Balise de fin de section</label>
+                                    <input
+                                      type="text"
+                                      value={disc.endStation || ''}
+                                      onChange={(e) => handleUpdateDiscipline(disc.id, { endStation: e.target.value })}
+                                      className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 font-mono font-bold text-slate-700 shadow-sm"
+                                      placeholder="Ex: 31"
                                     />
-                                    <div className="select-none flex-1">
-                                      <span className="font-bold text-slate-700 text-sm block">Départ Groupé</span>
-                                      <span className="text-[10px] text-slate-500 leading-tight">Départ commun sans bipper la balise de départ</span>
-                                    </div>
-                                  </label>
-                                </div>
-                              </div>
-                              {disc.isMassStart && (
-                                <div className="p-4 bg-emerald-50/50 rounded-xl border border-emerald-100 flex flex-col md:flex-row md:items-center gap-4">
-                                  <div className="flex-1">
-                                      <label className="text-xs font-bold text-emerald-700 uppercase tracking-wider block mb-2">Heure de départ groupé</label>
-                                      <input 
-                                        type="time" 
-                                        value={disc.startTime || ''} 
-                                        onChange={(e) => handleUpdateDiscipline(disc.id, { startTime: e.target.value })}
-                                        className="w-full md:w-48 px-4 py-3 text-base bg-white border border-emerald-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-mono font-bold text-slate-700 shadow-sm"
-                                      />
+                                    <p className="text-[10px] text-slate-400 mt-2 font-medium">Démarre automatiquement la section suivante.</p>
                                   </div>
                                 </div>
-                              )}
-                            </div>
+                              </div>
+                            )}
 
                             {/* Type & Modality */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 sm:p-6 bg-slate-50 rounded-2xl border border-slate-100">

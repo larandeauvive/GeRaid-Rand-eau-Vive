@@ -24,6 +24,7 @@ export interface Discipline {
 export interface Epreuve {
   id: string;
   name: string;
+  isMassStart?: boolean;
   startStation?: string;
   endStation?: string;
   startTime?: string;

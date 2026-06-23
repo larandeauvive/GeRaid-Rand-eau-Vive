@@ -36,24 +36,24 @@ export function RaceTab() {
   };
 
   const getCompetitorChrono = (comp: Competitor, ep: Epreuve) => {
-    if (!ep || !ep.startStation || !ep.endStation) return { totalChronoMs: 0, totalChronoStr: '-', frozenStr: null, status: 'En attente' };
+    if (!ep) return { totalChronoMs: 0, totalChronoStr: '-', frozenStr: null, status: 'En attente' };
     
     let startTimeMs: number | null = null;
     
     // Si heure de départ globale (ex: départ groupé général)
-    if (ep.startTime) {
+    if (ep.isMassStart && ep.startTime) {
       const [hours, minutes, seconds] = ep.startTime.split(':').map(Number);
       const today = new Date();
       today.setHours(hours, minutes, seconds || 0, 0);
       startTimeMs = today.getTime();
-    } else {
+    } else if (!ep.isMassStart && ep.startStation) {
       const startLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === ep.startStation);
       if (startLog && startLog.punchTime) {
         startTimeMs = startLog.punchTime.getTime();
       }
     }
     
-    const endLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === ep.endStation);
+    const endLog = ep.endStation ? logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === ep.endStation) : undefined;
     
     if (startTimeMs && endLog && endLog.punchTime) {
       let diff = endLog.punchTime.getTime() - startTimeMs;
@@ -99,24 +99,45 @@ export function RaceTab() {
     if (!ep) return [];
     
     const segmentsList: {name: string, chrono: string}[] = [];
-    ep.disciplines.forEach(d => {
+    
+    ep.disciplines.forEach((d, idx) => {
        // Chrono de la discipline entière (section)
        let discStartTimeMs: number | null = null;
+       let discStartStationName = '';
+       let discEndStationName = '';
        
-       if (d.isMassStart && d.startTime) {
-         const [hours, minutes, seconds] = d.startTime.split(':').map(Number);
-         const today = new Date();
-         today.setHours(hours, minutes, seconds || 0, 0);
-         discStartTimeMs = today.getTime();
-       } else if (d.startStation) {
-         const startLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === d.startStation);
-         if (startLog && startLog.punchTime) {
-             discStartTimeMs = startLog.punchTime.getTime();
-         }
+       if (idx === 0) {
+           // Première section : démarre avec le départ global
+           if (ep.isMassStart && ep.startTime) {
+             const [hours, minutes, seconds] = ep.startTime.split(':').map(Number);
+             const today = new Date();
+             today.setHours(hours, minutes, seconds || 0, 0);
+             discStartTimeMs = today.getTime();
+             discStartStationName = 'Départ groupé';
+           } else if (!ep.isMassStart && ep.startStation) {
+             const startLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === ep.startStation);
+             if (startLog && startLog.punchTime) {
+                 discStartTimeMs = startLog.punchTime.getTime();
+                 discStartStationName = `Départ (${ep.startStation})`;
+             }
+           }
+       } else {
+           // Sections suivantes : démarrent à la fin de la section précédente
+           const prevSectionEnd = ep.disciplines[idx - 1].endStation;
+           if (prevSectionEnd) {
+               const startLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === prevSectionEnd);
+               if (startLog && startLog.punchTime) {
+                   discStartTimeMs = startLog.punchTime.getTime();
+                   discStartStationName = `Transition (${prevSectionEnd})`;
+               }
+           }
        }
 
-       if (d.endStation) {
-           const endLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === d.endStation);
+       const endStation = idx === ep.disciplines.length - 1 ? ep.endStation : d.endStation;
+       discEndStationName = endStation ? endStation : '?';
+       
+       if (endStation) {
+           const endLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === endStation);
            if (discStartTimeMs && endLog && endLog.punchTime) {
                const diff = endLog.punchTime.getTime() - discStartTimeMs;
                segmentsList.push({ name: d.name, chrono: formatTimeDiff(diff) });
@@ -200,7 +221,7 @@ export function RaceTab() {
             </select>
         </div>
         
-        {selectedEpreuve && (
+        {selectedEpreuve && selectedEpreuve.isMassStart && (
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 w-full sm:w-auto p-4 bg-white rounded-2xl border border-emerald-100 shadow-sm">
             <div>
               <label className="text-xs font-bold text-emerald-700 uppercase tracking-wider block mb-2">Heure de départ globale</label>

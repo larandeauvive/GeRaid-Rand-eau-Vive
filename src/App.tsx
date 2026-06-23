@@ -5,6 +5,7 @@
 
 import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
+import * as XLSX from 'xlsx';
 import { format } from 'date-fns';
 import { Activity, Usb, Save, Upload, Trash2, Users, Clock, ArrowRightLeft, Settings, LogOut, CheckCircle2 } from 'lucide-react';
 import { useSportIdent } from './hooks/useSportIdent';
@@ -82,21 +83,54 @@ export default function App() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        setImportState({
-          headers: results.meta.fields || [],
-          data: results.data
-        });
-        setActiveTab('settings');
-      },
-      error: (error) => {
-        console.error("Erreur de parsing CSV:", error);
-        alert("Erreur lors de la lecture du fichier CSV.");
-      }
-    });
+    if (file.name.endsWith('.csv')) {
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          setImportState({
+            headers: results.meta.fields || [],
+            data: results.data
+          });
+          setActiveTab('settings');
+        },
+        error: (error) => {
+          console.error("Erreur de parsing CSV:", error);
+          alert("Erreur lors de la lecture du fichier CSV.");
+        }
+      });
+    } else if (file.name.match(/\.xlsx?$/)) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const data = new Uint8Array(e.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+        
+        if (json.length > 0) {
+          const headers = json[0] as string[];
+          const rows = json.slice(1).map((row: any) => {
+            const obj: any = {};
+            headers.forEach((header, index) => {
+              obj[header] = row[index];
+            });
+            return obj;
+          });
+          
+          setImportState({
+            headers: headers || [],
+            data: rows
+          });
+          setActiveTab('settings');
+        }
+      };
+      reader.onerror = (error) => {
+        console.error("Erreur de parsing Excel:", error);
+        alert("Erreur lors de la lecture du fichier Excel.");
+      };
+      reader.readAsArrayBuffer(file);
+    }
     
     if (fileInputRef.current) {
         fileInputRef.current.value = '';
@@ -194,11 +228,11 @@ export default function App() {
               <Upload className="h-6 w-6 text-emerald-600" />
             </div>
             <h4 className="text-sm font-bold text-emerald-900">Import Klikego</h4>
-            <p className="text-[11px] text-emerald-700 mt-1 mb-4">Téléchargez le listing (CSV)</p>
+            <p className="text-[11px] text-emerald-700 mt-1 mb-4">Téléchargez le listing (CSV/Excel)</p>
             
             <input 
               type="file" 
-              accept=".csv" 
+              accept=".csv, .xls, .xlsx" 
               className="hidden" 
               ref={fileInputRef}
               onChange={handleFileUpload}
