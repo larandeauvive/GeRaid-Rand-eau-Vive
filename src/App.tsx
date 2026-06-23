@@ -12,6 +12,7 @@ import { Competitor } from './types';
 import { ConfigurationTab } from './components/ConfigurationTab';
 import { CompetitorsTab } from './components/CompetitorsTab';
 import { ImportMapper } from './components/ImportMapper';
+import { RaceTab } from './components/RaceTab';
 import { useAuth } from './AuthProvider';
 import { useCompetitors, useFrameLogs, useEpreuves } from './firestoreHooks';
 
@@ -23,7 +24,7 @@ export default function App() {
   const { epreuves } = useEpreuves();
   const { addLog } = useFrameLogs();
   
-  const [activeTab, setActiveTab] = useState<'logs' | 'results' | 'competitors' | 'epreuves'>('epreuves');
+  const [activeTab, setActiveTab] = useState<'logs' | 'results' | 'competitors' | 'epreuves' | 'race'>('race');
   const [importState, setImportState] = useState<{headers: string[], data: any[]}|null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -75,65 +76,6 @@ export default function App() {
     const s = totalSeconds % 60;
     if(h > 0) return `${h}h ${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     return `${m}m ${s.toString().padStart(2, '0')}s`;
-  };
-
-  const getCompetitorChrono = (comp: Competitor) => {
-    const ep = epreuves.find(e => e.name === comp.epreuve);
-    if (!ep || !ep.startStation || !ep.endStation) return { totalChrono: '-', frozen: null };
-    
-    const startLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === ep.startStation);
-    const endLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === ep.endStation);
-    
-    if (startLog && endLog && startLog.punchTime && endLog.punchTime) {
-      let diff = endLog.punchTime.getTime() - startLog.punchTime.getTime();
-      let frozenMs = 0;
-      
-      if (ep.neutralizations) {
-         ep.neutralizations.forEach(neut => {
-            const nStartLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === neut.startStation);
-            const nEndLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === neut.endStation);
-            if (nStartLog && nEndLog && nStartLog.punchTime && nEndLog.punchTime) {
-                if (nStartLog.punchTime >= startLog.punchTime && nEndLog.punchTime <= endLog.punchTime) {
-                    const nDiff = nEndLog.punchTime.getTime() - nStartLog.punchTime.getTime();
-                    if (nDiff > 0) {
-                        diff -= nDiff;
-                        frozenMs += nDiff;
-                    }
-                }
-            }
-         });
-      }
-      return { 
-        totalChrono: formatTimeDiff(diff), 
-        frozen: frozenMs > 0 ? formatTimeDiff(frozenMs) : null 
-      };
-    }
-    
-    if (startLog) return { totalChrono: 'En course...', frozen: null };
-    
-    return { totalChrono: 'En attente', frozen: null };
-  };
-
-  const getCompetitorSegments = (comp: Competitor) => {
-    const ep = epreuves.find(e => e.name === comp.epreuve);
-    if (!ep) return [];
-    
-    const segmentsList: {name: string, chrono: string}[] = [];
-    ep.disciplines.forEach(d => {
-       if (d.segments) {
-         d.segments.forEach(seg => {
-           const startLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === seg.startStation);
-           const endLog = logs.find(l => l.chipNumber === comp.chipNumber && l.stationNumber === seg.endStation);
-           if (startLog && endLog && startLog.punchTime && endLog.punchTime) {
-               const diff = endLog.punchTime.getTime() - startLog.punchTime.getTime();
-               segmentsList.push({ name: seg.name, chrono: formatTimeDiff(diff) });
-           } else if (startLog) {
-               segmentsList.push({ name: seg.name, chrono: 'En cours...' });
-           }
-         });
-       }
-    });
-    return segmentsList;
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -292,13 +234,13 @@ export default function App() {
               <span className="hidden sm:inline">Live Logs</span> ({logs.length})
             </button>
             <button
-              onClick={() => setActiveTab('results')}
+              onClick={() => setActiveTab('race')}
               className={`flex-1 py-3 px-4 font-bold text-sm rounded-2xl flex items-center justify-center gap-2 transition-all whitespace-nowrap ${
-                activeTab === 'results' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                activeTab === 'race' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
               <Clock className="h-4 w-4" />
-              <span className="hidden sm:inline">Résultats Live</span>
+              <span className="hidden sm:inline">Course</span>
             </button>
             <button
               onClick={() => setActiveTab('competitors')}
@@ -391,70 +333,9 @@ export default function App() {
             </div>
           )}
 
-          {/* Tab Content: Results (Recent History Style) */}
-          {activeTab === 'results' && (
-            <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex flex-col h-full overflow-hidden">
-              <div className="flex justify-between items-center mb-6 shrink-0">
-                <h3 className="text-sm font-bold uppercase tracking-widest text-slate-400">Competitors List</h3>
-              </div>
-              
-              <div className="flex-1 overflow-auto -mx-2 px-2">
-                <table className="w-full text-left">
-                  <thead className="bg-white sticky top-0 z-10 border-b border-slate-100">
-                    <tr className="text-[10px] text-slate-400 uppercase">
-                      <th className="pb-3 px-2 font-bold bg-white">Dos.</th>
-                      <th className="pb-3 px-2 font-bold bg-white">SI-Card</th>
-                      <th className="pb-3 px-2 font-bold bg-white">Name</th>
-                      <th className="pb-3 px-2 font-bold bg-white">Race</th>
-                      <th className="pb-3 px-2 font-bold bg-white hidden md:table-cell">Club</th>
-                      <th className="pb-3 px-2 font-bold bg-white text-right">Chrono</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-sm">
-                    {competitors.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-2 py-12 text-center text-slate-400 font-medium border-t border-slate-50">
-                          Aucun concurrent chargé. Importez un fichier CSV.
-                        </td>
-                      </tr>
-                    ) : (
-                      competitors.map((comp) => {
-                        const segments = getCompetitorSegments(comp);
-                        return (
-                          <tr key={comp.id} className="border-t border-slate-50 hover:bg-slate-50 transition-colors group">
-                            <td className="px-2 py-3 font-mono text-slate-500 align-top">{comp.bib}</td>
-                            <td className="px-2 py-3 font-mono font-bold text-emerald-600 align-top">{comp.chipNumber}</td>
-                            <td className="px-2 py-3 font-semibold text-slate-800 align-top">{comp.lastName?.toUpperCase()} {comp.firstName}</td>
-                            <td className="px-2 py-3 text-slate-500 align-top">{comp.epreuve}</td>
-                            <td className="px-2 py-3 text-slate-500 max-w-[150px] truncate hidden md:table-cell align-top" title={comp.club}>{comp.club}</td>
-                            <td className="px-2 py-3 text-right align-top">
-                               <div className="font-mono font-bold text-indigo-600 text-base">
-                                 {getCompetitorChrono(comp).totalChrono}
-                               </div>
-                               {getCompetitorChrono(comp).frozen && (
-                                 <div className="text-[10px] text-orange-500 font-medium">
-                                   (dont {getCompetitorChrono(comp).frozen} gelés)
-                                 </div>
-                               )}
-                               {segments.length > 0 && (
-                                 <div className="mt-2 flex flex-col gap-1 items-end">
-                                   {segments.map((seg, idx) => (
-                                     <div key={idx} className="flex items-center gap-2 text-[10px] bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-                                       <span className="font-semibold text-slate-500 uppercase tracking-wider">{seg.name}</span>
-                                       <span className="font-mono text-indigo-500 font-bold">{seg.chrono}</span>
-                                     </div>
-                                   ))}
-                                 </div>
-                               )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+          {/* Tab Content: Course */}
+          {activeTab === 'race' && (
+             <RaceTab />
           )}
 
           {/* Tab Content: Parcours */}
