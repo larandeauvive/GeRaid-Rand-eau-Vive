@@ -10,6 +10,9 @@ export function useSportIdent() {
   const portRef = useRef<any>(null);
   const readerRef = useRef<any>(null);
 
+  const closedPromiseRef = useRef<Promise<void> | null>(null);
+  const keepReadingRef = useRef(true);
+
   const connect = async () => {
     try {
       if (!('serial' in navigator)) {
@@ -25,7 +28,8 @@ export function useSportIdent() {
       setIsConnected(true);
       
       // We don't await this so it runs in background
-      readLoop(port);
+      keepReadingRef.current = true;
+      closedPromiseRef.current = readLoop(port);
     } catch (error) {
       console.error("Erreur de connexion SportIdent:", error);
       // Don't alert if the user just cancelled the picker
@@ -37,14 +41,16 @@ export function useSportIdent() {
   };
 
   const disconnect = async () => {
+    keepReadingRef.current = false;
     try {
       if (readerRef.current) {
         await readerRef.current.cancel();
-        readerRef.current = null;
+      }
+      if (closedPromiseRef.current) {
+        await closedPromiseRef.current;
+        closedPromiseRef.current = null;
       }
       if (portRef.current) {
-        // give it a short time to cancel before closing
-        await new Promise(res => setTimeout(res, 100));
         await portRef.current.close();
         portRef.current = null;
       }
@@ -94,11 +100,11 @@ export function useSportIdent() {
 
   const readLoop = async (port: any) => {
     try {
-      while (port.readable) {
+      while (port.readable && keepReadingRef.current) {
         const reader = port.readable.getReader();
         readerRef.current = reader;
         try {
-          while (true) {
+          while (keepReadingRef.current) {
             const { value, done } = await reader.read();
             if (done) {
               break;
