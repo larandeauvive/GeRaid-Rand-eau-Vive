@@ -8,6 +8,9 @@ export interface SpecialSegment {
 export interface Discipline {
   id: string;
   name: string;
+  startStation?: string;
+  endStation?: string;
+  isMassStart?: boolean;
   activityType?: string;
   modality?: string;
   isCO?: boolean; // if true, exposes CO specific configuration

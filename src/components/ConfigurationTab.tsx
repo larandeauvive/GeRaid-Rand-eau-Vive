@@ -86,7 +86,13 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
   const handleAddDiscipline = () => {
     setDraft(currentDraft => {
         if (!currentDraft) return currentDraft;
-        const newDisc: Discipline = { id: generateId(), name: `Section ${currentDraft.disciplines.length + 1}` };
+        const newDisc: Discipline = { 
+            id: generateId(), 
+            name: `Section ${currentDraft.disciplines.length + 1}`,
+            startStation: 'Départ',
+            endStation: 'Arrivée',
+            isMassStart: false
+        };
         const newDraft = { ...currentDraft, disciplines: [...currentDraft.disciplines, newDisc] };
         saveDraft(newDraft);
         return newDraft;
@@ -455,6 +461,44 @@ export function ConfigurationTab({ onTriggerImport }: ConfigurationTabProps) {
                           {/* Configuration body */}
                           <div className="p-4 sm:p-6 md:p-8 space-y-8">
                             
+                            {/* Bornage et Départ */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-5 sm:p-6 bg-slate-50/50 rounded-2xl border border-slate-100">
+                              <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2" title="Balise de départ de la section">Départ Section</label>
+                                <input
+                                  type="text"
+                                  value={disc.startStation || ''}
+                                  onChange={(e) => handleUpdateDiscipline(disc.id, { startStation: e.target.value })}
+                                  className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 font-mono font-bold text-slate-700 shadow-sm"
+                                  placeholder="Ex: Départ, 31..."
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-2" title="Balise d'arrivée de la section">Arrivée Section</label>
+                                <input
+                                  type="text"
+                                  value={disc.endStation || ''}
+                                  onChange={(e) => handleUpdateDiscipline(disc.id, { endStation: e.target.value })}
+                                  className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 font-mono font-bold text-slate-700 shadow-sm"
+                                  placeholder="Ex: Arrivée, 99..."
+                                />
+                              </div>
+                              <div className="flex items-center md:pt-6">
+                                <label className="flex items-center gap-3 cursor-pointer p-3 bg-white w-full border border-slate-200 shadow-sm hover:border-emerald-300 rounded-xl transition-colors">
+                                  <input 
+                                    type="checkbox" 
+                                    checked={!!disc.isMassStart}
+                                    onChange={(e) => handleUpdateDiscipline(disc.id, { isMassStart: e.target.checked })}
+                                    className="w-5 h-5 text-emerald-500 rounded border-slate-300 focus:ring-emerald-500 focus:ring-2 transition-all cursor-pointer"
+                                  />
+                                  <div className="select-none flex-1">
+                                    <span className="font-bold text-slate-700 text-sm block">Départ Groupé</span>
+                                    <span className="text-[10px] text-slate-500 leading-tight">Tous les concurrents partent en même temps</span>
+                                  </div>
+                                </label>
+                              </div>
+                            </div>
+
                             {/* Type & Modality */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 sm:p-6 bg-slate-50 rounded-2xl border border-slate-100">
                               <div>
